@@ -220,17 +220,21 @@ function TagEditor({ ctrl, sessionId, showCreate = true }) {
 
   return jsxs('section', { className: 'flex flex-col gap-2', children: [
     jsx('h3', { className: headingClass, children: 'Session tags' }),
-    sessionId && tagEntries.length ? jsx('div', { className: 'flex max-h-36 flex-col gap-1 overflow-y-auto', children: tagEntries.map(([id, tag]) => {
-      const selected = selectedTagId === id;
-      return jsx('button', {
-        key: id, type: 'button', title: `Assign ${tag.name} (${tag.emoji})`,
-        'aria-label': `Assign ${tag.name} tag to session`, 'aria-pressed': selected,
-        className: 'flex items-center gap-2 rounded border border-(--dt-border) px-2 py-1 text-left text-[11px] hover:opacity-90 focus-visible:outline',
-        style: { backgroundColor: tag.color, color: readableOn(tag.color), outline: selected ? '2px solid var(--ui-text-primary)' : undefined, outlineOffset: 1 },
-        onClick: () => ctrl.setSessionTag(sessionId, id),
-        children: jsxs('span', { className: 'flex items-center gap-2', children: [jsx('span', { 'aria-hidden': true, children: tag.emoji }), jsx('span', { children: tag.name })] }),
-      }, id);
-    }) }) : jsx('p', { className: 'text-[11px] text-(--ui-text-tertiary)', children: sessionId ? 'No tags yet. Create one below.' : 'Open a session to assign a tag.' }),
+    tagEntries.length ? jsxs('div', { className: 'flex flex-col gap-1', children: [
+      !sessionId ? jsx('p', { className: 'text-[11px] text-(--ui-text-tertiary)', children: 'Open a session to assign a tag.' }) : null,
+      jsx('div', { className: 'flex max-h-36 flex-col gap-1 overflow-y-auto', children: tagEntries.map(([id, tag]) => {
+        const selected = selectedTagId === id;
+        return jsx('button', {
+          key: id, type: 'button', disabled: !sessionId,
+          title: sessionId ? `Assign ${tag.name} (${tag.emoji})` : `${tag.name} (open a session to assign)`,
+          'aria-label': sessionId ? `Assign ${tag.name} tag to session` : `${tag.name} tag`, 'aria-pressed': selected,
+          className: 'flex items-center gap-2 rounded border border-(--dt-border) px-2 py-1 text-left text-[11px] hover:opacity-90 focus-visible:outline',
+          style: { backgroundColor: tag.color, color: readableOn(tag.color), outline: selected ? '2px solid var(--ui-text-primary)' : undefined, outlineOffset: 1 },
+          onClick: () => { if (sessionId) ctrl.setSessionTag(sessionId, id); },
+          children: jsxs('span', { className: 'flex items-center gap-2', children: [jsx('span', { 'aria-hidden': true, children: tag.emoji }), jsx('span', { children: tag.name })] }),
+        }, id);
+      }) }),
+    ] }) : jsx('p', { className: 'text-[11px] text-(--ui-text-tertiary)', children: sessionId ? 'No tags yet. Create one below.' : 'Open a session to assign a tag.' }),
     legacyEmoji ? jsx('p', { className: 'text-[10px] text-(--ui-text-tertiary)', children: `Legacy emoji ${legacyEmoji} will remain until replaced or cleared.` }) : null,
     sessionId && (selectedTagId || legacyEmoji) ? jsx('button', { type: 'button', className: buttonClass,
       'aria-label': 'Clear session tag', onClick: () => ctrl.setSessionTag(sessionId, null), children: 'Clear tag' }) : null,
@@ -345,7 +349,7 @@ function RowControl({ ctrl, sessionId }) {
       title: tag ? `Prisma: change tag ${tag.name}` : legacyEmoji ? `Legacy session emoji (${legacyEmoji})` : 'Prisma: assign a session tag',
       'aria-label': tag ? `Session tag ${tag.name} (${tag.emoji})` : legacyEmoji ? `Legacy session emoji (${legacyEmoji})` : 'Assign a session tag',
       className: 'rounded border border-(--dt-border) px-1 text-[12px] opacity-80 hover:opacity-100 focus-visible:opacity-100',
-      style: tag ? { backgroundColor: tag.color, color: readableOn(tag.color) } : {},
+      style: tag ? { backgroundColor: `${tag.color}80`, color: readableOn(tag.color) } : {},
       onClick: (event) => event.stopPropagation(),
       onPointerDown: (event) => event.stopPropagation(),
       onDoubleClick: (event) => event.stopPropagation(),

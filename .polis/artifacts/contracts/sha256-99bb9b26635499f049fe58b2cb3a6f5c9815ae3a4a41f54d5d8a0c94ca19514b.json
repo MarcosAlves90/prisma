@@ -1,0 +1,242 @@
+{
+  "schema_version": 6,
+  "kind": "defect",
+  "scope": {
+    "allowed_paths": [
+      "desktop/plugin.js",
+      "tests/plugin.test.mjs",
+      "README.md"
+    ]
+  },
+  "test_scope": {
+    "allowed_paths": [
+      "tests/plugin.test.mjs"
+    ]
+  },
+  "development_method": "strict_sdd_tdd_v2",
+  "specification": {
+    "objective": "Keep created session tags visible without an open session and make assigned tag badges semi-transparent while preserving the full session indicator color.",
+    "requirements": [
+      {
+        "id": "REQ-TAG-1",
+        "statement": "Users can create a session tag with a non-empty name, one valid emoji, and a valid six-digit hex color."
+      },
+      {
+        "id": "REQ-TAG-2",
+        "statement": "Users can assign one existing tag to a session; its emoji is shown on the session-row badge and its color is used for the badge and the SDK session color indicator."
+      },
+      {
+        "id": "REQ-TAG-3",
+        "statement": "Tag definitions and durable-session assignments persist in plugin storage and are restored after plugin reload."
+      },
+      {
+        "id": "REQ-TAG-4",
+        "statement": "Existing emoji-only session assignments remain visible until replaced or cleared, without guessing a color for them."
+      },
+      {
+        "id": "REQ-TAG-5",
+        "statement": "Created tags remain visible in Prisma controls when no session is open; assignment is unavailable until a session is selected."
+      },
+      {
+        "id": "REQ-TAG-6",
+        "statement": "An assigned session-row badge uses a semi-transparent background derived from its tag color, while the SDK session color indicator keeps the full tag color."
+      }
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-TAG-1",
+        "statement": "A user can create a named tag with an emoji and color, then assign it to a session from the plugin UI.",
+        "requirements": [
+          "REQ-TAG-1",
+          "REQ-TAG-2"
+        ],
+        "proof": "regression"
+      },
+      {
+        "id": "AC-TAG-2",
+        "statement": "The session row shows the tag emoji on a semi-transparent badge derived from the tag color, and the SDK receives the full tag color keyed by the durable session ID.",
+        "requirements": [
+          "REQ-TAG-2",
+          "REQ-TAG-6"
+        ],
+        "proof": "regression"
+      },
+      {
+        "id": "AC-TAG-3",
+        "statement": "Tag definitions and assignments survive reload; clearing an applied tag clears its color override.",
+        "requirements": [
+          "REQ-TAG-3"
+        ],
+        "proof": "regression"
+      },
+      {
+        "id": "AC-TAG-4",
+        "statement": "Legacy emoji assignments remain visible until the user replaces or clears them; no background color is guessed for legacy entries.",
+        "requirements": [
+          "REQ-TAG-4"
+        ],
+        "proof": "regression"
+      },
+      {
+        "id": "AC-TAG-5",
+        "statement": "Created tags are listed even when no session is open, and cannot be assigned until a session is selected.",
+        "requirements": [
+          "REQ-TAG-5"
+        ],
+        "proof": "regression"
+      }
+    ],
+    "invariants": [
+      {
+        "id": "INV-TAG-1",
+        "statement": "Profile accent colors and the accent-derived app background continue to work unchanged."
+      },
+      {
+        "id": "INV-TAG-2",
+        "statement": "The feature uses the public host.sessions.setColor API and does not modify Hermes Desktop core."
+      },
+      {
+        "id": "INV-TAG-3",
+        "statement": "Session assignments remain keyed by durable stored session IDs."
+      }
+    ],
+    "forbidden_states": [
+      {
+        "id": "FORBID-TAG-1",
+        "statement": "A tag with an invalid name, emoji, or color is stored."
+      },
+      {
+        "id": "FORBID-TAG-2",
+        "statement": "An invalid or missing tag ID is applied to a session."
+      },
+      {
+        "id": "FORBID-TAG-3",
+        "statement": "Legacy emoji-only annotations are silently discarded or assigned an invented color."
+      },
+      {
+        "id": "FORBID-TAG-4",
+        "statement": "The full session-row background is changed through unsupported DOM or CSS manipulation."
+      },
+      {
+        "id": "FORBID-TAG-5",
+        "statement": "Created tag definitions disappear from Prisma controls solely because no session is open."
+      },
+      {
+        "id": "FORBID-TAG-6",
+        "statement": "The session badge is fully opaque or the SDK indicator loses the tag's full color."
+      }
+    ],
+    "inputs": [
+      {
+        "id": "INPUT-TAG-1",
+        "statement": "User-entered tag name, emoji, and color; the durable ID of the target session; existing plugin preferences; and the current focused-session state."
+      }
+    ],
+    "outputs": [
+      {
+        "id": "OUTPUT-TAG-1",
+        "statement": "Persisted tag definitions and session-tag assignments; a semi-transparent emoji badge; and the full SDK per-session color override."
+      }
+    ],
+    "failure_semantics": [
+      {
+        "id": "FAIL-TAG-1",
+        "statement": "Invalid tag input is rejected without modifying persisted preferences or session colors."
+      },
+      {
+        "id": "FAIL-TAG-2",
+        "statement": "Clearing a tag removes its assignment and clears the session color override."
+      }
+    ]
+  },
+  "baseline_lock": {
+    "git_object_format": "sha1",
+    "base_commit": "d8514ea9c002f60ebe558ea1e0316e6ad8e5d19b",
+    "base_tree": "0649ff7358d6ae0ae7e2a2a12d72201375daf42f",
+    "policy_sha256": "e79833ebc3a6aa4d452d938a53633435aac6943865e9798f6506fe2dcf650378",
+    "specification_sha256": "fa50e7a6dc957d2e32664fd33a048bdf2c20070101c2838531d80ec100b697e5"
+  },
+  "behavior": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "affected": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "regression": {
+    "mode": "red_green",
+    "command": {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "--test",
+        "tests/plugin.test.mjs"
+      ],
+      "cwd": ".",
+      "timeout_seconds": 1200,
+      "environment": {
+        "mode": "clean",
+        "pass": [
+          "PATH",
+          "HOME",
+          "TMPDIR",
+          "TMP",
+          "TEMP",
+          "SystemRoot",
+          "COMSPEC",
+          "PATHEXT",
+          "USERPROFILE",
+          "LOCALAPPDATA"
+        ]
+      }
+    },
+    "baseline_exit_code": 1,
+    "baseline_output_contains": [
+      "created tags remain visible without an open session",
+      "session tag badge uses a semi-transparent tag color"
+    ]
+  }
+}

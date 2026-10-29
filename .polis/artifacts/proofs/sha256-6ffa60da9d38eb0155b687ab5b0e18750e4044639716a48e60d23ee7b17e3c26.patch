@@ -1,0 +1,40 @@
+diff --git a/tests/plugin.test.mjs b/tests/plugin.test.mjs
+index 45aa8afdcb273987ed3e69bd302e1e16f67dbf13..1990969f353055adddabd26bc0b084307b49a7d7 100644
+--- a/tests/plugin.test.mjs
++++ b/tests/plugin.test.mjs
+@@ -115,7 +115,7 @@ test('Prisma supports creating and applying named session tags', async () => {
+   const row = () => app.find('session-tag').data.render({ sessionId: 'durable-root-1' });
+   const badge = app.nodes(row(), (n) => n.props['aria-label'] === 'Session tag Bug (🐛)');
+   assert.equal(badge[0].props.children, '🐛');
+-  assert.equal(badge[0].props.style.backgroundColor, '#AA3344');
++  assert.equal(badge[0].props.style.backgroundColor, '#AA334480');
+ 
+   app.nodes(renderMenu(), (n) => n.props['aria-label'] === 'Clear session tag')[0].props.onClick();
+   assert.equal(Object.hasOwn(app.writes.at(-1).value.sessionTags, 'durable-root-1'), false);
+@@ -210,5 +210,25 @@ test('persisted tags and colors are restored by a new plugin instance', async ()
+   const badges = app.nodes(app.find('session-tag').data.render({ sessionId: 'stable-123' }),
+     (n) => n.props['aria-label'] === 'Session tag Done (✅)');
+   assert.equal(badges[0].props.children, '✅');
+-  assert.equal(badges[0].props.style.backgroundColor, '#112233');
++  assert.equal(badges[0].props.style.backgroundColor, '#11223380');
++});
++
++test('created tags remain visible without an open session', async () => {
++  const app = await boot({ tags: { 'tag-1': { name: 'Ready', emoji: '✅', color: '#1E8B4F' } }, sessionTags: {}, sessionEmojis: {} });
++  app.activeId.set(null);
++  const tags = app.nodes(app.find('status').render(), (n) => n.props['aria-label'] === 'Ready tag');
++  assert.equal(tags.length, 1, 'created tags remain visible without an open session');
++  assert.equal(tags[0].props.disabled, true);
++});
++
++test('session tag badge uses a semi-transparent tag color', async () => {
++  const app = await boot({
++    tags: { 'tag-1': { name: 'Ready', emoji: '✅', color: '#112233' } },
++    sessionTags: { 'durable-session': 'tag-1' },
++    sessionEmojis: {},
++  });
++  const badge = app.nodes(app.find('session-tag').data.render({ sessionId: 'durable-session' }),
++    (n) => n.props['aria-label'] === 'Session tag Ready (✅)');
++  assert.equal(badge[0].props.style.backgroundColor, '#11223380');
++  assert.deepEqual(app.sessionColors.at(-1), { sessionId: 'durable-session', color: '#112233' });
+ });
