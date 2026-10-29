@@ -1,0 +1,177 @@
+{
+  "schema_version": 6,
+  "kind": "feature",
+  "scope": {
+    "allowed_paths": [
+      "desktop/plugin.js",
+      "tests/plugin.test.mjs",
+      "README.md"
+    ]
+  },
+  "test_scope": {
+    "allowed_paths": [
+      "tests/plugin.test.mjs"
+    ]
+  },
+  "development_method": "strict_sdd_tdd_v2",
+  "specification": {
+    "objective": "Keep archived sessions out of the Prisma Tagged sessions board, including when an archived session retains a tag assignment.",
+    "requirements": [
+      {
+        "id": "REQ-ARCHIVE-1",
+        "statement": "Archived session details are never rendered as tagged session cards."
+      },
+      {
+        "id": "REQ-ARCHIVE-2",
+        "statement": "Tagged assignments without returned active session details are not rendered as unavailable cards, because the SDK omits archived sessions and does not let plugins distinguish those from other unresolved assignments."
+      },
+      {
+        "id": "REQ-ARCHIVE-3",
+        "statement": "Matching non-archived tagged sessions remain visible and existing profile/tag filtering and session actions remain unchanged."
+      }
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-ARCHIVE-1",
+        "statement": "A regression test proves explicitly archived session details and unresolved tagged assignments are absent from the board while a matching active tagged session remains visible.",
+        "requirements": [
+          "REQ-ARCHIVE-1",
+          "REQ-ARCHIVE-2",
+          "REQ-ARCHIVE-3"
+        ],
+        "proof": "regression"
+      }
+    ],
+    "invariants": [
+      {
+        "id": "INV-ARCHIVE-1",
+        "statement": "Tag assignments and session metadata are not mutated merely because a session is archived or unavailable."
+      },
+      {
+        "id": "INV-ARCHIVE-2",
+        "statement": "Only the Prisma plugin, its focused tests, and corresponding README description change."
+      }
+    ],
+    "forbidden_states": [
+      {
+        "id": "FORBID-ARCHIVE-1",
+        "statement": "An archived session or unverified assignment appears as a card or unavailable entry on the Tagged sessions board."
+      },
+      {
+        "id": "FORBID-ARCHIVE-2",
+        "statement": "Filtering changes tag assignments, colors, session metadata, or unrelated plugin behavior."
+      }
+    ],
+    "inputs": [
+      {
+        "id": "INPUT-ARCHIVE-1",
+        "statement": "The session archived flag returned in session details, when present."
+      },
+      {
+        "id": "INPUT-ARCHIVE-2",
+        "statement": "The public SDK's active-only persisted-session results and Prisma tag assignments."
+      }
+    ],
+    "outputs": [
+      {
+        "id": "OUTPUT-ARCHIVE-1",
+        "statement": "A Tagged sessions board containing verified active tagged sessions only."
+      }
+    ],
+    "failure_semantics": [
+      {
+        "id": "FAIL-ARCHIVE-1",
+        "statement": "The regression test fails if archived or unresolved tagged assignments appear on the board."
+      }
+    ]
+  },
+  "baseline_lock": {
+    "git_object_format": "sha1",
+    "base_commit": "94ef221e9e28668717d4effee58c66d4ffea7f60",
+    "base_tree": "ac24114b82d984b15d02d99bf8d23c9530d1fb1d",
+    "policy_sha256": "e79833ebc3a6aa4d452d938a53633435aac6943865e9798f6506fe2dcf650378",
+    "specification_sha256": "6ab0b43b6c3e82277a2295306fa4c3f969a122aa350bcdc619534b7c781358dd"
+  },
+  "behavior": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "affected": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "regression": {
+    "mode": "red_green",
+    "command": {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "--test",
+        "tests/plugin.test.mjs"
+      ],
+      "cwd": ".",
+      "timeout_seconds": 1200,
+      "environment": {
+        "mode": "clean",
+        "pass": [
+          "PATH",
+          "HOME",
+          "TMPDIR",
+          "TMP",
+          "TEMP",
+          "SystemRoot",
+          "COMSPEC",
+          "PATHEXT",
+          "USERPROFILE",
+          "LOCALAPPDATA"
+        ]
+      }
+    },
+    "baseline_exit_code": 1,
+    "baseline_output_contains": [
+      "archived and unresolved tagged sessions are hidden from the board"
+    ]
+  }
+}

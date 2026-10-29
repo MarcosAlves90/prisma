@@ -512,15 +512,9 @@ function profileRouteLabel(route, routes) {
   return `${name} · ${source}`;
 }
 
-function taggedAssignments(prefs) {
-  return Object.entries(prefs.sessionTags)
-    .map(([sessionId, tagId]) => ({ sessionId, tagId, tag: prefs.tags[tagId] }))
-    .filter((row) => row.tag);
-}
-
 async function loadTaggedSessions(prefs) {
   if (!Object.keys(prefs.sessionTags).length) {
-    return { routes: [], rows: [], unavailable: [], errors: [], incomplete: false };
+    return { routes: [], rows: [], errors: [], incomplete: false };
   }
 
   const routes = await host.profileRoutes();
@@ -536,7 +530,6 @@ async function loadTaggedSessions(prefs) {
     }
   }));
 
-  const knownIds = new Set();
   const rows = [];
   const errors = [];
   let incomplete = false;
@@ -544,9 +537,9 @@ async function loadTaggedSessions(prefs) {
     if (result.failed) errors.push(result.route);
     if (!result.failed && result.total > result.sessions.length) incomplete = true;
     for (const session of result.sessions) {
+      if (session?.archived === true) continue;
       const ids = [session?._lineage_root_id, session?.id, ...(Array.isArray(session?._lineage_ids) ? session._lineage_ids : [])]
         .filter((id) => typeof id === 'string' && id.length);
-      for (const id of ids) knownIds.add(id);
       const assignmentId = ids.find((id) => Object.hasOwn(prefs.sessionTags, id));
       if (!assignmentId) continue;
       const tagId = prefs.sessionTags[assignmentId];
@@ -555,14 +548,13 @@ async function loadTaggedSessions(prefs) {
     }
   }
 
-  const unavailable = taggedAssignments(prefs).filter((row) => !knownIds.has(row.sessionId));
-  return { routes, rows, unavailable, errors, incomplete };
+  return { routes, rows, errors, incomplete };
 }
 
 function TaggedSessionsPage({ ctrl }) {
   const prefs = useValue(ctrl.$prefs);
   const { theme } = useTheme();
-  const [data, setData] = useState({ loading: true, error: false, routes: [], rows: [], unavailable: [], errors: [], incomplete: false });
+  const [data, setData] = useState({ loading: true, error: false, routes: [], rows: [], errors: [], incomplete: false });
   const [profileFilter, setProfileFilter] = useState('all');
   const [tagFilter, setTagFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -575,7 +567,7 @@ function TaggedSessionsPage({ ctrl }) {
     loadTaggedSessions(prefs).then((result) => {
       if (active) setData({ ...result, loading: false, error: false });
     }).catch(() => {
-      if (active) setData({ loading: false, error: true, routes: [], rows: [], unavailable: taggedAssignments(prefs), errors: [], incomplete: false });
+      if (active) setData({ loading: false, error: true, routes: [], rows: [], errors: [], incomplete: false });
     });
     return () => { active = false; };
   }, [refresh, prefs.sessionTags, prefs.tags]);
@@ -608,12 +600,10 @@ function TaggedSessionsPage({ ctrl }) {
     const label = profileRouteLabel(row.route, data.routes);
     return (profileFilter === 'all' || profileFilter === profileRouteKey(row.route)) && matches(row, label);
   });
-  const visibleUnavailable = profileFilter === 'all' ? data.unavailable.filter((row) => matches(row)) : [];
   const groups = tags.filter(([id]) => tagFilter === 'all' || tagFilter === id).map(([id, tag]) => ({
     id, tag, rows: visibleRows.filter((row) => row.tagId === id),
-    unavailable: visibleUnavailable.filter((row) => row.tagId === id),
   }));
-  const count = visibleRows.length + visibleUnavailable.length;
+  const count = visibleRows.length;
   const tagBadge = (tag) => jsx(Badge, {
     className: 'shrink-0 border-0 px-1.5 py-0.5 text-xs font-medium',
     style: { backgroundColor: `${tag.color}${TAG_FILL_ALPHA.toString(16).padStart(2, '0')}`, color: readableOn(compositeColor(tag.color, theme.colors.background)) },
@@ -648,15 +638,14 @@ function TaggedSessionsPage({ ctrl }) {
     ] }),
     data.loading ? jsx('p', { role: 'status', 'aria-live': 'polite', className: 'text-sm text-(--ui-text-secondary)', children: 'Loading tagged sessions…' }) : null,
     data.error ? jsx(ErrorState, { title: 'Unable to load profile routes', description: 'Check the connection and retry.', children: jsx(Button, { type: 'button', onClick: () => setRefresh((value) => value + 1), children: 'Retry' }) }) : null,
-    ...data.errors.map((route) => jsx('div', { role: 'alert', className: 'rounded-lg border border-(--dt-border) px-3 py-2 text-sm text-(--ui-text-secondary)', children: `Could not load ${profileRouteLabel(route, data.routes)}. Any matching assignment remains visible by session ID.` }, profileRouteKey(route))),
-    data.incomplete ? jsx('p', { role: 'status', className: 'text-xs text-(--ui-text-secondary)', children: 'Some profile lists are incomplete (500-session SDK limit); tagged assignments outside the returned page remain visible by ID.' }) : null,
+    ...data.errors.map((route) => jsx('div', { role: 'alert', className: 'rounded-lg border border-(--dt-border) px-3 py-2 text-sm text-(--ui-text-secondary)', children: `Could not load ${profileRouteLabel(route, data.routes)}. Tagged assignments without verified active session details are hidden.` }, profileRouteKey(route))),
+    data.incomplete ? jsx('p', { role: 'status', className: 'text-xs text-(--ui-text-secondary)', children: 'Some profile lists are incomplete (500-session SDK limit); tagged assignments outside the returned pages are hidden.' }) : null,
     openError ? jsx('p', { role: 'alert', className: 'text-sm text-destructive', children: openError }) : null,
-    profileFilter !== 'all' && data.unavailable.length ? jsx('p', { className: 'text-xs text-(--ui-text-secondary)', children: 'Assignments without profile details appear when All profiles is selected.' }) : null,
     data.loading ? null : (count || (!Object.keys(prefs.sessionTags).length && tags.length && !query)) ? jsx('div', { className: 'flex min-h-0 gap-3 overflow-x-auto pb-3', 'aria-label': 'Tagged sessions board', children:
       groups.map((group) => jsxs('section', { 'aria-label': `${group.tag.name} tag column`, onDragOver: (event) => { if (boardDrag) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }, onDrop: (event) => dropOn(event, group.id), className: 'flex w-72 shrink-0 flex-col gap-2 rounded-lg border border-(--dt-border) p-3', children: [
         jsxs('h2', { className: 'flex items-center justify-between gap-2 text-sm font-medium', children: [
           jsx('span', { draggable: true, role: 'img', 'aria-label': `Drag ${group.tag.name} column`, title: 'Drag to reorder', onDragStart: (event) => startDrag(event, { type: 'column', id: group.id }), onDragEnd: () => { boardDrag = null; }, className: 'cursor-grab', children: '⠿' }),
-          tagBadge(group.tag), jsx('span', { className: 'text-xs text-(--ui-text-secondary)', children: group.rows.length + group.unavailable.length }),
+          tagBadge(group.tag), jsx('span', { className: 'text-xs text-(--ui-text-secondary)', children: group.rows.length }),
           jsx('button', { type: 'button', 'aria-label': `Move ${group.tag.name} column left`, disabled: ctrl.orderedTagIds().indexOf(group.id) === 0, onClick: () => { const order = ctrl.orderedTagIds(); ctrl.moveColumn(group.id, order[order.indexOf(group.id) - 1]); }, className: buttonClass, children: '←' }),
           jsx('button', { type: 'button', 'aria-label': `Move ${group.tag.name} column right`, disabled: ctrl.orderedTagIds().indexOf(group.id) === ctrl.orderedTagIds().length - 1, onClick: () => { const order = ctrl.orderedTagIds(); ctrl.moveColumn(group.id, order[order.indexOf(group.id) + 1]); }, className: buttonClass, children: '→' }),
         ] }),
@@ -675,15 +664,7 @@ function TaggedSessionsPage({ ctrl }) {
             ] }),
           ] }, `${profileRouteKey(row.route)}:${row.sessionId}`);
         }),
-        ...group.unavailable.map((row) => jsxs('div', { role: 'group', draggable: true, onDragStart: (event) => startDrag(event, { type: 'session', id: row.sessionId, tagId: row.tagId }), onDragEnd: () => { boardDrag = null; }, 'aria-label': `Tagged session unavailable: ${row.sessionId}`, className: 'flex cursor-grab flex-col gap-1 rounded-lg border border-(--dt-border) p-3', children: [
-          jsx('code', { className: 'break-all text-xs', children: row.sessionId }),
-          jsx('span', { className: 'text-xs text-(--ui-text-secondary)', children: 'Session details unavailable' }),
-          jsxs(Select, { value: row.tagId, onValueChange: (id) => ctrl.setSessionTag(row.sessionId, id), 'aria-label': `Change tag for ${row.sessionId}`, children: [
-            jsx(SelectTrigger, { 'aria-label': `Change tag for ${row.sessionId}`, children: jsx(SelectValue, {}) }),
-            jsx(SelectContent, { children: tags.map(([id, tag]) => jsx(SelectItem, { value: id, children: tag.name }, id)) }),
-          ] }),
-        ] }, row.sessionId)),
-        !group.rows.length && !group.unavailable.length ? jsx('p', { className: 'text-xs text-(--ui-text-secondary)', children: 'No matching sessions' }) : null,
+        !group.rows.length ? jsx('p', { className: 'text-xs text-(--ui-text-secondary)', children: 'No matching sessions' }) : null,
       ] }, group.id)),
     }) : jsx(EmptyState, {
       title: Object.keys(prefs.sessionTags).length ? 'No matching sessions' : 'No tagged sessions yet',

@@ -1,0 +1,51 @@
+diff --git a/tests/plugin.test.mjs b/tests/plugin.test.mjs
+index 0ecfbfa06725a32310f95f2063e0716aebc135aa..49df7f57a1559c11d78f6a908cb88937847bbd51 100644
+--- a/tests/plugin.test.mjs
++++ b/tests/plugin.test.mjs
+@@ -369,6 +369,26 @@ async function loadTaggedPage(app) {
+   return taggedPageNodes(app);
+ }
+ 
++test('archived and unresolved tagged sessions are hidden from the board', async () => {
++  const app = await boot({
++    tags: { bug: { name: 'Bug', emoji: '🐛', color: '#AA3344' } },
++    sessionTags: { active: 'bug', archived: 'bug', missing: 'bug' },
++    sessionEmojis: {},
++  }, {
++    profileRoutes: [localRoute],
++    sessionPages: {
++      local: { sessions: [
++        { id: 'active', title: 'Active issue', archived: false },
++        { id: 'archived', title: 'Archived issue', archived: true },
++      ], total: 2 },
++    },
++  });
++  const nodes = await loadTaggedPage(app);
++  assert.equal(nodes.some((node) => node.props['aria-label'] === 'Open tagged session Active issue'), true);
++  assert.equal(nodes.some((node) => node.props['aria-label'] === 'Open tagged session Archived issue'), false);
++  assert.equal(nodes.some((node) => node.props['aria-label'] === 'Tagged session unavailable: missing'), false);
++});
++
+ test('sidebar panel lists tagged sessions across profiles', async () => {
+   const app = await boot({
+     tags: {
+@@ -403,8 +423,8 @@ test('sidebar panel lists tagged sessions across profiles', async () => {
+   assert.deepEqual(app.sessionQueries.map(({ query }) => query.profile).sort(), ['dev', 'offline', 'writer']);
+   assert.equal(nodes.some((node) => node.props['aria-label'] === 'Open tagged session Local issue'), true);
+   assert.equal(nodes.some((node) => node.props['aria-label'] === 'Open tagged session Remote idea'), true);
+-  assert.equal(nodes.some((node) => node.props['aria-label'] === 'Tagged session unavailable: missing-session'), true);
+-  assert.equal(nodes.some((node) => node.props['aria-label'] === 'Tagged session unavailable: offline-session'), true);
++  assert.equal(nodes.some((node) => node.props['aria-label'] === 'Tagged session unavailable: missing-session'), false);
++  assert.equal(nodes.some((node) => node.props['aria-label'] === 'Tagged session unavailable: offline-session'), false);
+   assert.equal(nodes.some((node) => node.props.role === 'alert'), true, 'a failed profile remains visible');
+   assert.equal(nodes.some((node) => String(node.props.children).includes('incomplete')), true, 'large profile lists disclose partial details');
+ 
+@@ -436,7 +456,7 @@ test('tag columns group sessions across profiles', async () => {
+   assert.ok(bugNodes.some((node) => node.props['aria-label'] === 'Open tagged session Second'));
+   assert.ok(bugNodes.some((node) => node.props.children === 'dev'));
+   assert.ok(bugNodes.some((node) => node.props.children === 'writer'));
+-  assert.ok(doneNodes.some((node) => node.props['aria-label'] === 'Tagged session unavailable: lost'));
++  assert.ok(!doneNodes.some((node) => node.props['aria-label'] === 'Tagged session unavailable: lost'));
+   assert.ok(!bugNodes.some((node) => node.props['aria-label'] === 'Tagged session unavailable: lost'));
+ });
+ 
