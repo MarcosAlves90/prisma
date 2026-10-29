@@ -104,7 +104,9 @@ function cleanPrefs(input) {
       if (emoji) Object.defineProperty(sessionEmojis, key, { value: emoji, enumerable: true, configurable: true, writable: true });
     }
   }
-  return { version: VERSION, profileColors, tags, sessionTags, sessionEmojis };
+  const tagOrder = Array.isArray(input?.tagOrder)
+    ? [...new Set(input.tagOrder.filter((id) => typeof id === 'string' && Object.hasOwn(tags, id)))] : [];
+  return { version: VERSION, profileColors, tags, sessionTags, sessionEmojis, tagOrder };
 }
 
 function createController(ctx) {
@@ -182,7 +184,7 @@ function createController(ctx) {
         affectedSessions.push(sessionId);
       }
     }
-    persist({ ...prefs, tags, sessionTags });
+    persist({ ...prefs, tags, sessionTags, tagOrder: prefs.tagOrder.filter((tagId) => tagId !== id) });
     for (const sessionId of affectedSessions) host.sessions.setColor(sessionId, null);
     return true;
   }
@@ -202,6 +204,23 @@ function createController(ctx) {
     return true;
   }
 
+  function orderedTagIds() {
+    const rest = Object.keys(prefs.tags).filter((id) => !prefs.tagOrder.includes(id))
+      .sort((a, b) => prefs.tags[a].name.localeCompare(prefs.tags[b].name));
+    return [...prefs.tagOrder.filter((id) => Object.hasOwn(prefs.tags, id)), ...rest];
+  }
+
+  function moveColumn(source, target) {
+    const order = orderedTagIds();
+    const from = order.indexOf(source);
+    const to = order.indexOf(target);
+    if (from < 0 || to < 0 || from === to) return false;
+    order.splice(from, 1);
+    order.splice(to, 0, source);
+    persist({ ...prefs, tagOrder: order });
+    return true;
+  }
+
   for (const [sessionId, tagId] of Object.entries(prefs.sessionTags)) {
     host.sessions.setColor(sessionId, prefs.tags[tagId].color);
   }
@@ -214,7 +233,7 @@ function createController(ctx) {
     setAccentOverride(null);
     for (const sessionId of Object.keys(prefs.sessionTags)) host.sessions.setColor(sessionId, null);
   });
-  return { $prefs, themeState, accentFor, backgroundFor, setProfileColor, createTag, editTag, deleteTag, setSessionTag };
+  return { $prefs, themeState, accentFor, backgroundFor, setProfileColor, createTag, editTag, deleteTag, setSessionTag, orderedTagIds, moveColumn };
 }
 
 const headingClass = 'mb-1.5 text-[11px] font-semibold text-(--ui-text-secondary)';
@@ -479,6 +498,7 @@ function SettingsPage({ ctrl }) {
 
 const TAGGED_SESSIONS_PATH = '/prisma/tagged-sessions';
 const TAGGED_SESSION_LIMIT = 500;
+let boardDrag = null;
 
 function profileRouteKey(route) {
   return JSON.stringify([route.connectionId, route.profile, route.targetProfile]);
@@ -560,7 +580,22 @@ function TaggedSessionsPage({ ctrl }) {
     return () => { active = false; };
   }, [refresh, prefs.sessionTags, prefs.tags]);
 
-  const tags = Object.entries(prefs.tags).sort((a, b) => a[1].name.localeCompare(b[1].name));
+  const tags = ctrl.orderedTagIds().map((id) => [id, prefs.tags[id]]);
+  const startDrag = (event, drag) => {
+    event.stopPropagation();
+    boardDrag = drag;
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', 'prisma-board');
+  };
+  const dropOn = (event, target) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const drag = boardDrag;
+    boardDrag = null;
+    if (!drag || event.dataTransfer.getData('text/plain') !== 'prisma-board') return;
+    if (drag.type === 'column') ctrl.moveColumn(drag.id, target);
+    if (drag.type === 'session' && ctrl.$prefs.get().sessionTags[drag.id] === drag.tagId && drag.tagId !== target) ctrl.setSessionTag(drag.id, target);
+  };
   const query = search.trim().toLowerCase();
   const matches = (row, label = '') => {
     if (tagFilter !== 'all' && row.tagId !== tagFilter) return false;
@@ -617,23 +652,36 @@ function TaggedSessionsPage({ ctrl }) {
     data.incomplete ? jsx('p', { role: 'status', className: 'text-xs text-(--ui-text-secondary)', children: 'Some profile lists are incomplete (500-session SDK limit); tagged assignments outside the returned page remain visible by ID.' }) : null,
     openError ? jsx('p', { role: 'alert', className: 'text-sm text-destructive', children: openError }) : null,
     profileFilter !== 'all' && data.unavailable.length ? jsx('p', { className: 'text-xs text-(--ui-text-secondary)', children: 'Assignments without profile details appear when All profiles is selected.' }) : null,
-    data.loading ? null : count ? jsx('div', { className: 'flex min-h-0 gap-3 overflow-x-auto pb-3', 'aria-label': 'Tagged sessions board', children:
-      groups.map((group) => jsxs('section', { 'aria-label': `${group.tag.name} tag column`, className: 'flex w-72 shrink-0 flex-col gap-2 rounded-lg border border-(--dt-border) p-3', children: [
-        jsxs('h2', { className: 'flex items-center justify-between gap-2 text-sm font-medium', children: [tagBadge(group.tag), jsx('span', { className: 'text-xs text-(--ui-text-secondary)', children: group.rows.length + group.unavailable.length })] }),
+    data.loading ? null : (count || (!Object.keys(prefs.sessionTags).length && tags.length && !query)) ? jsx('div', { className: 'flex min-h-0 gap-3 overflow-x-auto pb-3', 'aria-label': 'Tagged sessions board', children:
+      groups.map((group) => jsxs('section', { 'aria-label': `${group.tag.name} tag column`, onDragOver: (event) => { if (boardDrag) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }, onDrop: (event) => dropOn(event, group.id), className: 'flex w-72 shrink-0 flex-col gap-2 rounded-lg border border-(--dt-border) p-3', children: [
+        jsxs('h2', { className: 'flex items-center justify-between gap-2 text-sm font-medium', children: [
+          jsx('span', { draggable: true, role: 'img', 'aria-label': `Drag ${group.tag.name} column`, title: 'Drag to reorder', onDragStart: (event) => startDrag(event, { type: 'column', id: group.id }), onDragEnd: () => { boardDrag = null; }, className: 'cursor-grab', children: '⠿' }),
+          tagBadge(group.tag), jsx('span', { className: 'text-xs text-(--ui-text-secondary)', children: group.rows.length + group.unavailable.length }),
+          jsx('button', { type: 'button', 'aria-label': `Move ${group.tag.name} column left`, disabled: ctrl.orderedTagIds().indexOf(group.id) === 0, onClick: () => { const order = ctrl.orderedTagIds(); ctrl.moveColumn(group.id, order[order.indexOf(group.id) - 1]); }, className: buttonClass, children: '←' }),
+          jsx('button', { type: 'button', 'aria-label': `Move ${group.tag.name} column right`, disabled: ctrl.orderedTagIds().indexOf(group.id) === ctrl.orderedTagIds().length - 1, onClick: () => { const order = ctrl.orderedTagIds(); ctrl.moveColumn(group.id, order[order.indexOf(group.id) + 1]); }, className: buttonClass, children: '→' }),
+        ] }),
         ...group.rows.map((row) => {
           const title = typeof row.session.title === 'string' && row.session.title.trim() ? row.session.title : 'Untitled session';
-          return jsxs('div', { className: 'flex flex-col gap-2 rounded-lg border border-(--dt-border) p-3 hover:bg-(--chrome-action-hover)', children: [
+          return jsxs('div', { draggable: true, 'aria-label': `Move session ${title}`, onDragStart: (event) => startDrag(event, { type: 'session', id: row.assignmentId, tagId: row.tagId }), onDragEnd: () => { boardDrag = null; }, className: 'flex cursor-grab flex-col gap-2 rounded-lg border border-(--dt-border) p-3 hover:bg-(--chrome-action-hover)', children: [
             jsx('div', { className: 'break-words text-sm font-medium', children: title }),
             row.session.preview ? jsx('p', { className: 'line-clamp-2 text-xs text-(--ui-text-secondary)', children: row.session.preview }) : null,
+            jsxs(Select, { value: row.tagId, onValueChange: (id) => ctrl.setSessionTag(row.assignmentId, id), 'aria-label': `Change tag for ${title}`, children: [
+              jsx(SelectTrigger, { 'aria-label': `Change tag for ${title}`, children: jsx(SelectValue, {}) }),
+              jsx(SelectContent, { children: tags.map(([id, tag]) => jsx(SelectItem, { value: id, children: tag.name }, id)) }),
+            ] }),
             jsxs('div', { className: 'flex items-center justify-between gap-2', children: [
               jsx('span', { className: 'truncate text-xs text-(--ui-text-secondary)', children: profileRouteLabel(row.route, data.routes) }),
               jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', 'aria-label': `Open tagged session ${title}`, onClick: () => host.openSession(row.sessionId, { route: row.route }).catch(() => setOpenError('Unable to open this session. Refresh and try again.')), children: 'Open' }),
             ] }),
           ] }, `${profileRouteKey(row.route)}:${row.sessionId}`);
         }),
-        ...group.unavailable.map((row) => jsxs('div', { role: 'group', 'aria-label': `Tagged session unavailable: ${row.sessionId}`, className: 'flex flex-col gap-1 rounded-lg border border-(--dt-border) p-3', children: [
+        ...group.unavailable.map((row) => jsxs('div', { role: 'group', draggable: true, onDragStart: (event) => startDrag(event, { type: 'session', id: row.sessionId, tagId: row.tagId }), onDragEnd: () => { boardDrag = null; }, 'aria-label': `Tagged session unavailable: ${row.sessionId}`, className: 'flex cursor-grab flex-col gap-1 rounded-lg border border-(--dt-border) p-3', children: [
           jsx('code', { className: 'break-all text-xs', children: row.sessionId }),
           jsx('span', { className: 'text-xs text-(--ui-text-secondary)', children: 'Session details unavailable' }),
+          jsxs(Select, { value: row.tagId, onValueChange: (id) => ctrl.setSessionTag(row.sessionId, id), 'aria-label': `Change tag for ${row.sessionId}`, children: [
+            jsx(SelectTrigger, { 'aria-label': `Change tag for ${row.sessionId}`, children: jsx(SelectValue, {}) }),
+            jsx(SelectContent, { children: tags.map(([id, tag]) => jsx(SelectItem, { value: id, children: tag.name }, id)) }),
+          ] }),
         ] }, row.sessionId)),
         !group.rows.length && !group.unavailable.length ? jsx('p', { className: 'text-xs text-(--ui-text-secondary)', children: 'No matching sessions' }) : null,
       ] }, group.id)),

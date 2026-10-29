@@ -1,0 +1,168 @@
+{
+  "schema_version": 6,
+  "kind": "feature",
+  "scope": {
+    "allowed_paths": [
+      "desktop/plugin.js",
+      "tests/plugin.test.mjs",
+      "README.md"
+    ]
+  },
+  "test_scope": {
+    "allowed_paths": [
+      "tests/plugin.test.mjs"
+    ]
+  },
+  "development_method": "strict_sdd_tdd_v2",
+  "specification": {
+    "objective": "Allow moving sessions between tag columns and persistently reordering columns.",
+    "requirements": [
+      {
+        "id": "REQ-MOVE-1",
+        "statement": "Users can drag a tagged session to another tag column and the session assignment and color update persistently."
+      },
+      {
+        "id": "REQ-MOVE-2",
+        "statement": "Users can reorder tag columns and their order persists through reload; accessible non-drag controls are available."
+      }
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-MOVE-1",
+        "statement": "Dropping a valid session onto a tag column changes its tag and color while other sessions remain unchanged; keyboard-accessible controls allow the same operation.",
+        "requirements": [
+          "REQ-MOVE-1"
+        ],
+        "proof": "regression"
+      },
+      {
+        "id": "AC-MOVE-2",
+        "statement": "Dragging and accessible controls reorder tag columns and restored preferences preserve the order; new or deleted tags remain valid.",
+        "requirements": [
+          "REQ-MOVE-2"
+        ],
+        "proof": "regression"
+      }
+    ],
+    "invariants": [
+      {
+        "id": "INV-MOVE-1",
+        "statement": "Existing profile filters, navigation, tag settings and other session assignments remain intact."
+      }
+    ],
+    "forbidden_states": [
+      {
+        "id": "FORBID-MOVE-1",
+        "statement": "Unrelated or invalid drag payloads mutate assignments or tag order."
+      }
+    ],
+    "inputs": [
+      {
+        "id": "INPUT-MOVE-1",
+        "statement": "Drag or accessible move action and persisted tag preferences."
+      }
+    ],
+    "outputs": [
+      {
+        "id": "OUTPUT-MOVE-1",
+        "statement": "Updated tag assignment or persistent tag column ordering."
+      }
+    ],
+    "failure_semantics": [
+      {
+        "id": "FAIL-MOVE-1",
+        "statement": "Invalid, stale or cancelled drag interactions do not mutate preferences."
+      }
+    ]
+  },
+  "baseline_lock": {
+    "git_object_format": "sha1",
+    "base_commit": "6264b905b5736a5f9661bc343d895fc7855fe2a0",
+    "base_tree": "2b22efec882e747205d13a43f77aaefd2cbeaef1",
+    "policy_sha256": "e79833ebc3a6aa4d452d938a53633435aac6943865e9798f6506fe2dcf650378",
+    "specification_sha256": "67a9217e2e8c58fbd148b508ceddc509f5d746f7dd1b48e4605ea5aa9ab4cc46"
+  },
+  "behavior": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "affected": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "regression": {
+    "mode": "red_green",
+    "command": {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "--test",
+        "tests/plugin.test.mjs"
+      ],
+      "cwd": ".",
+      "timeout_seconds": 1200,
+      "environment": {
+        "mode": "clean",
+        "pass": [
+          "PATH",
+          "HOME",
+          "TMPDIR",
+          "TMP",
+          "TEMP",
+          "SystemRoot",
+          "COMSPEC",
+          "PATHEXT",
+          "USERPROFILE",
+          "LOCALAPPDATA"
+        ]
+      }
+    },
+    "baseline_exit_code": 1,
+    "baseline_output_contains": [
+      "drag sessions between tag columns",
+      "reorder tag columns persistently"
+    ]
+  }
+}

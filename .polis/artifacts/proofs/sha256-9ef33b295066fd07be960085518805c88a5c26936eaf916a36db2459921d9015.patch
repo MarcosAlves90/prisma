@@ -1,0 +1,53 @@
+diff --git a/tests/plugin.test.mjs b/tests/plugin.test.mjs
+index f1a84f2737cd36ceb329f9ead61d0b279550f7ac..a5e5c9d6e0b4f38caefb6c1c020c1fc71e305e92 100644
+--- a/tests/plugin.test.mjs
++++ b/tests/plugin.test.mjs
+@@ -440,6 +440,48 @@ test('tag columns group sessions across profiles', async () => {
+   assert.ok(!bugNodes.some((node) => node.props['aria-label'] === 'Tagged session unavailable: lost'));
+ });
+ 
++test('drag sessions between tag columns', async () => {
++  const app = await boot({ tags: { bug: { name: 'Bug', emoji: '🐛', color: '#AA3344' }, done: { name: 'Done', emoji: '✅', color: '#196D31' } }, sessionTags: { root: 'bug', other: 'bug' } }, {
++    profileRoutes: [localRoute], sessionPages: { local: { sessions: [{ id: 'rotated', _lineage_root_id: 'root', title: 'First' }, { id: 'other', title: 'Other' }], total: 2 } },
++  });
++  let nodes = await loadTaggedPage(app);
++  const card = nodes.find((n) => n.props['aria-label'] === 'Move session First');
++  const target = nodes.find((n) => n.props['aria-label'] === 'Done tag column');
++  assert.ok(card && target && card.props.draggable && target.props.onDrop, 'drag controls exist');
++  const transfer = { data: {}, setData(type, value) { this.data[type] = value; }, getData(type) { return this.data[type] || ''; } };
++  card.props.onDragStart({ dataTransfer: transfer, stopPropagation() {} });
++  target.props.onDrop({ dataTransfer: transfer, preventDefault() {}, stopPropagation() {} });
++  assert.equal(app.writes.at(-1).value.sessionTags.root, 'done');
++  assert.equal(app.writes.at(-1).value.sessionTags.other, 'bug');
++  assert.deepEqual(app.sessionColors.at(-1), { sessionId: 'root', color: '#196D31' });
++  nodes = await loadTaggedPage(app);
++  const menu = nodes.find((n) => n.props['aria-label'] === 'Change tag for Other');
++  assert.ok(menu, 'keyboard accessible move control exists');
++  menu.props.onValueChange('done');
++  assert.equal(app.writes.at(-1).value.sessionTags.other, 'done');
++});
++
++test('reorder tag columns persistently', async () => {
++  const saved = { tags: { bug: { name: 'Bug', emoji: '🐛', color: '#AA3344' }, done: { name: 'Done', emoji: '✅', color: '#196D31' } }, sessionTags: { one: 'bug' } };
++  const options = { profileRoutes: [localRoute], sessionPages: { local: { sessions: [{ id: 'one', title: 'First' }], total: 1 } } };
++  const app = await boot(saved, options);
++  let nodes = await loadTaggedPage(app);
++  const handle = nodes.find((n) => n.props['aria-label'] === 'Drag Bug column');
++  const target = nodes.find((n) => n.props['aria-label'] === 'Done tag column');
++  assert.ok(handle && handle.props.draggable && target.props.onDrop, 'column drag controls exist');
++  const transfer = { data: {}, setData(type, value) { this.data[type] = value; }, getData(type) { return this.data[type] || ''; } };
++  handle.props.onDragStart({ dataTransfer: transfer, stopPropagation() {} });
++  target.props.onDrop({ dataTransfer: transfer, preventDefault() {}, stopPropagation() {} });
++  assert.deepEqual(Array.from(app.writes.at(-1).value.tagOrder), ['done', 'bug']);
++  const restored = await boot(app.writes.at(-1).value, options);
++  nodes = await loadTaggedPage(restored);
++  assert.deepEqual(nodes.filter((n) => n.type === 'section' && /tag column$/.test(n.props['aria-label'] || '')).map((n) => n.props['aria-label']), ['Done tag column', 'Bug tag column']);
++  const left = nodes.find((n) => n.props['aria-label'] === 'Move Bug column left');
++  assert.ok(left, 'keyboard accessible reorder control exists');
++  left.props.onClick();
++  assert.deepEqual(Array.from(restored.writes.at(-1).value.tagOrder), ['bug', 'done']);
++});
++
+ test('tagged sessions can be filtered by profile and tag, searched, and opened', async () => {
+   const app = await boot({
+     tags: {

@@ -10,7 +10,7 @@ Prisma adds **persistent accent colors per profile** and **custom colored emoji 
 - Created tags remain listed in Prisma controls without an open session; assigning a tag requires a selected session.
 - Assign or clear a tag from the session-row popover, or manage tags and the focused session from the Prisma status-bar popover or settings page.
 - Settings page under **Settings → Plugins → Prisma**, plus two commands in the command palette.
-- A **Tagged sessions** page in the sidebar displays assigned sessions across registered profiles in kanban-style tag columns, with profile/tag filters, text search, result counts, refresh, and direct open actions. Assignments without returned session details remain visible by ID.
+- A **Tagged sessions** page in the sidebar displays assigned sessions across registered profiles in kanban-style tag columns, with profile/tag filters, text search, result counts, refresh, and direct open actions. Drag a session to change its tag, or use its tag selector; reorder columns by dragging their handles or using the arrow buttons. Column order is saved. Assignments without returned session details remain visible by ID.
 - Session annotations are keyed by **stored/durable session ID**, so they survive session ID rotations caused by context compression.
 
 ## Install (macOS/Linux)
