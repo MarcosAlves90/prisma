@@ -1,0 +1,196 @@
+{
+  "schema_version": 6,
+  "kind": "behavior_preserving",
+  "scope": {
+    "allowed_paths": [
+      ".github/workflows/ci.yml",
+      "README.md",
+      "docs/usage.md",
+      "tests/plugin.test.mjs"
+    ]
+  },
+  "test_scope": {
+    "allowed_paths": [
+      "tests/plugin.test.mjs"
+    ]
+  },
+  "development_method": "strict_sdd_tdd_v2",
+  "specification": {
+    "objective": "Add a GitHub Actions CI workflow for Prisma and reorganize its documentation into a polished, concise README with a dedicated usage guide.",
+    "requirements": [
+      {
+        "id": "REQ-CI-1",
+        "statement": "GitHub Actions runs the plugin syntax check and complete Node test suite for pushes and pull requests targeting main, and supports manual dispatch."
+      },
+      {
+        "id": "REQ-DOC-1",
+        "statement": "The README acts as a concise project landing page, retains the cover, shows CI status, and links to focused usage documentation."
+      },
+      {
+        "id": "REQ-DOC-2",
+        "statement": "Detailed installation, usage, compatibility, limitations, and distribution guidance is organized in docs/usage.md and does not reference missing project files."
+      }
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-CI-1",
+        "statement": "The workflow YAML parses and explicitly runs node --check desktop/plugin.js and node --experimental-vm-modules --test tests/plugin.test.mjs on push/PR to main and manual dispatch.",
+        "requirements": [
+          "REQ-CI-1"
+        ],
+        "proof": "regression"
+      },
+      {
+        "id": "AC-DOC-1",
+        "statement": "README preserves an accessible relative cover-image link, contains the workflow badge, concise feature/install/test sections, and links to docs/usage.md.",
+        "requirements": [
+          "REQ-DOC-1"
+        ],
+        "proof": "regression"
+      },
+      {
+        "id": "AC-DOC-2",
+        "statement": "The dedicated guide retains relevant usage and technical notes, and all referenced install commands/files exist or are accurately labeled.",
+        "requirements": [
+          "REQ-DOC-2"
+        ],
+        "proof": "regression"
+      }
+    ],
+    "invariants": [
+      {
+        "id": "INV-CI-1",
+        "statement": "The workflow uses the existing Node test setup and adds no dependencies or runtime plugin changes."
+      },
+      {
+        "id": "INV-DOC-1",
+        "statement": "Documentation remains in English and existing plugin behavior and asset bytes are unchanged."
+      }
+    ],
+    "forbidden_states": [
+      {
+        "id": "FORBID-CI-1",
+        "statement": "CI depends on an absent package manifest, package installation, or external secrets."
+      },
+      {
+        "id": "FORBID-DOC-1",
+        "statement": "README or guide points to a nonexistent installer or package manifest."
+      }
+    ],
+    "inputs": [
+      {
+        "id": "INPUT-CI-1",
+        "statement": "Existing Node syntax check and tests/plugin.test.mjs test command."
+      },
+      {
+        "id": "INPUT-DOC-1",
+        "statement": "Current README and repository files."
+      }
+    ],
+    "outputs": [
+      {
+        "id": "OUTPUT-CI-1",
+        "statement": "A GitHub Actions CI workflow for plugin syntax and tests."
+      },
+      {
+        "id": "OUTPUT-DOC-1",
+        "statement": "A concise README and a detailed docs/usage.md user guide."
+      }
+    ],
+    "failure_semantics": [
+      {
+        "id": "FAIL-CI-1",
+        "statement": "Invalid workflow YAML or failed local test gates block delivery."
+      },
+      {
+        "id": "FAIL-DOC-1",
+        "statement": "Broken README image or guide links and inaccurate installation instructions block delivery."
+      }
+    ]
+  },
+  "baseline_lock": {
+    "git_object_format": "sha1",
+    "base_commit": "02d9d15d0783cb8729edeca33147cea0cca2c22a",
+    "base_tree": "84ae80f19a6444373034328f964819a3b4188bf4",
+    "policy_sha256": "e79833ebc3a6aa4d452d938a53633435aac6943865e9798f6506fe2dcf650378",
+    "specification_sha256": "333769cf96a52145576ceb6cae11ae351a284a71d814e8d8cf27f60de6da892b"
+  },
+  "behavior": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "affected": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "regression": {
+    "mode": "green_green",
+    "command": {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "--test",
+        "tests/plugin.test.mjs"
+      ],
+      "cwd": ".",
+      "timeout_seconds": 1200,
+      "environment": {
+        "mode": "clean",
+        "pass": [
+          "PATH",
+          "HOME",
+          "TMPDIR",
+          "TMP",
+          "TEMP",
+          "SystemRoot",
+          "COMSPEC",
+          "PATHEXT",
+          "USERPROFILE",
+          "LOCALAPPDATA"
+        ]
+      }
+    }
+  }
+}
