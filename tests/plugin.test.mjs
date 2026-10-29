@@ -415,6 +415,31 @@ test('sidebar panel lists tagged sessions across profiles', async () => {
   assert.equal(app.openedSessions.at(-1).openOptions.route.targetProfile, 'dev');
 });
 
+test('tag columns group sessions across profiles', async () => {
+  const app = await boot({
+    tags: { bug: { name: 'Bug', emoji: '🐛', color: '#AA3344' }, done: { name: 'Done', emoji: '✅', color: '#196D31' } },
+    sessionTags: { one: 'bug', two: 'bug', lost: 'done' }, sessionEmojis: {},
+  }, {
+    profileRoutes: [localRoute, remoteRoute],
+    sessionPages: {
+      local: { sessions: [{ id: 'one', title: 'First' }], total: 1 },
+      'remote-1': { sessions: [{ id: 'two', title: 'Second' }], total: 1 },
+    },
+  });
+  const nodes = await loadTaggedPage(app);
+  const bug = nodes.find((node) => node.type === 'section' && node.props['aria-label'] === 'Bug tag column');
+  const done = nodes.find((node) => node.type === 'section' && node.props['aria-label'] === 'Done tag column');
+  assert.ok(bug && done, 'tag columns exist');
+  const bugNodes = app.nodes(bug, () => true);
+  const doneNodes = app.nodes(done, () => true);
+  assert.ok(bugNodes.some((node) => node.props['aria-label'] === 'Open tagged session First'));
+  assert.ok(bugNodes.some((node) => node.props['aria-label'] === 'Open tagged session Second'));
+  assert.ok(bugNodes.some((node) => node.props.children === 'dev'));
+  assert.ok(bugNodes.some((node) => node.props.children === 'writer'));
+  assert.ok(doneNodes.some((node) => node.props['aria-label'] === 'Tagged session unavailable: lost'));
+  assert.ok(!bugNodes.some((node) => node.props['aria-label'] === 'Tagged session unavailable: lost'));
+});
+
 test('tagged sessions can be filtered by profile and tag, searched, and opened', async () => {
   const app = await boot({
     tags: {

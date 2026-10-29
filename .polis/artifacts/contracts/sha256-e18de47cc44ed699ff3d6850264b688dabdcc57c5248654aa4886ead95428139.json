@@ -1,0 +1,163 @@
+{
+  "schema_version": 6,
+  "kind": "feature",
+  "scope": {
+    "allowed_paths": [
+      "desktop/plugin.js",
+      "tests/plugin.test.mjs",
+      "README.md"
+    ]
+  },
+  "test_scope": {
+    "allowed_paths": [
+      "tests/plugin.test.mjs"
+    ]
+  },
+  "development_method": "strict_sdd_tdd_v2",
+  "specification": {
+    "objective": "Display tagged sessions in a kanban-style board grouped by tag.",
+    "requirements": [
+      {
+        "id": "REQ-BOARD-1",
+        "statement": "Organize tagged sessions in accessible columns by tag across profile routes, including unavailable assignments."
+      }
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-BOARD-1",
+        "statement": "Each tag column contains its matching sessions from all profiles and unavailable assignments, with a tag label, count and profile context.",
+        "requirements": [
+          "REQ-BOARD-1"
+        ],
+        "proof": "regression"
+      },
+      {
+        "id": "AC-BOARD-2",
+        "statement": "Existing profile and tag filters, search, session opening, and feedback remain functional.",
+        "requirements": [
+          "REQ-BOARD-1"
+        ],
+        "proof": "regression"
+      }
+    ],
+    "invariants": [
+      {
+        "id": "INV-BOARD-1",
+        "statement": "Viewing the board does not modify tags, assignments or sessions."
+      }
+    ],
+    "forbidden_states": [
+      {
+        "id": "FORBID-BOARD-1",
+        "statement": "A session appears under a different tag or its profile route is lost."
+      }
+    ],
+    "inputs": [
+      {
+        "id": "INPUT-BOARD-1",
+        "statement": "Tag assignments and profile session listings."
+      }
+    ],
+    "outputs": [
+      {
+        "id": "OUTPUT-BOARD-1",
+        "statement": "An accessible horizontally scrollable board of tag columns and session cards."
+      }
+    ],
+    "failure_semantics": [
+      {
+        "id": "FAIL-BOARD-1",
+        "statement": "Unavailable session details and profile loading errors remain visible."
+      }
+    ]
+  },
+  "baseline_lock": {
+    "git_object_format": "sha1",
+    "base_commit": "ac120267bf965be8accb50ad494abdcbf3fe9bd8",
+    "base_tree": "3e4167d02bd2e1dc1f18fc01ce33d6bb33f983e1",
+    "policy_sha256": "e79833ebc3a6aa4d452d938a53633435aac6943865e9798f6506fe2dcf650378",
+    "specification_sha256": "04682bd4314cc8234d4a7ad76d47fc18c3cb3761d5e3e33a47b26d8b1ddbc727"
+  },
+  "behavior": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "affected": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "regression": {
+    "mode": "red_green",
+    "command": {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "--test",
+        "tests/plugin.test.mjs"
+      ],
+      "cwd": ".",
+      "timeout_seconds": 1200,
+      "environment": {
+        "mode": "clean",
+        "pass": [
+          "PATH",
+          "HOME",
+          "TMPDIR",
+          "TMP",
+          "TEMP",
+          "SystemRoot",
+          "COMSPEC",
+          "PATHEXT",
+          "USERPROFILE",
+          "LOCALAPPDATA"
+        ]
+      }
+    },
+    "baseline_exit_code": 1,
+    "baseline_output_contains": [
+      "tag columns group sessions across profiles"
+    ]
+  }
+}

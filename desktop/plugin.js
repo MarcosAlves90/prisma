@@ -574,16 +574,10 @@ function TaggedSessionsPage({ ctrl }) {
     return (profileFilter === 'all' || profileFilter === profileRouteKey(row.route)) && matches(row, label);
   });
   const visibleUnavailable = profileFilter === 'all' ? data.unavailable.filter((row) => matches(row)) : [];
-  const groups = [];
-  for (const row of visibleRows) {
-    const key = profileRouteKey(row.route);
-    let group = groups.find((item) => item.key === key);
-    if (!group) {
-      group = { key, label: profileRouteLabel(row.route, data.routes), rows: [] };
-      groups.push(group);
-    }
-    group.rows.push(row);
-  }
+  const groups = tags.filter(([id]) => tagFilter === 'all' || tagFilter === id).map(([id, tag]) => ({
+    id, tag, rows: visibleRows.filter((row) => row.tagId === id),
+    unavailable: visibleUnavailable.filter((row) => row.tagId === id),
+  }));
   const count = visibleRows.length + visibleUnavailable.length;
   const tagBadge = (tag) => jsx(Badge, {
     className: 'shrink-0 border-0 px-1.5 py-0.5 text-xs font-medium',
@@ -591,7 +585,7 @@ function TaggedSessionsPage({ ctrl }) {
     children: `${tag.emoji} ${tag.name}`,
   });
 
-  return jsxs('main', { className: 'mx-auto flex h-full min-h-0 w-full max-w-4xl flex-col gap-4 overflow-y-auto p-5', children: [
+  return jsxs('main', { className: 'flex h-full min-h-0 w-full flex-col gap-4 overflow-y-auto p-5', children: [
     jsxs('header', { className: 'flex items-start justify-between gap-3', children: [
       jsxs('div', { children: [
         jsx('h1', { className: 'text-lg font-semibold', children: 'Tagged sessions' }),
@@ -623,31 +617,27 @@ function TaggedSessionsPage({ ctrl }) {
     data.incomplete ? jsx('p', { role: 'status', className: 'text-xs text-(--ui-text-secondary)', children: 'Some profile lists are incomplete (500-session SDK limit); tagged assignments outside the returned page remain visible by ID.' }) : null,
     openError ? jsx('p', { role: 'alert', className: 'text-sm text-destructive', children: openError }) : null,
     profileFilter !== 'all' && data.unavailable.length ? jsx('p', { className: 'text-xs text-(--ui-text-secondary)', children: 'Assignments without profile details appear when All profiles is selected.' }) : null,
-    data.loading ? null : count ? jsxs('div', { className: 'flex flex-col gap-4', children: [
-      ...groups.map((group) => jsxs('section', { 'aria-label': `${group.label} tagged sessions`, className: 'flex flex-col gap-2', children: [
-        jsxs('h2', { className: 'flex items-center gap-2 text-sm font-medium', children: [group.label, jsx('span', { className: 'text-xs text-(--ui-text-tertiary)', children: group.rows.length })] }),
+    data.loading ? null : count ? jsx('div', { className: 'flex min-h-0 gap-3 overflow-x-auto pb-3', 'aria-label': 'Tagged sessions board', children:
+      groups.map((group) => jsxs('section', { 'aria-label': `${group.tag.name} tag column`, className: 'flex w-72 shrink-0 flex-col gap-2 rounded-lg border border-(--dt-border) p-3', children: [
+        jsxs('h2', { className: 'flex items-center justify-between gap-2 text-sm font-medium', children: [tagBadge(group.tag), jsx('span', { className: 'text-xs text-(--ui-text-secondary)', children: group.rows.length + group.unavailable.length })] }),
         ...group.rows.map((row) => {
           const title = typeof row.session.title === 'string' && row.session.title.trim() ? row.session.title : 'Untitled session';
-          return jsxs('div', { className: 'flex items-center justify-between gap-3 rounded-lg border border-(--dt-border) px-3 py-2 hover:bg-(--chrome-action-hover)', children: [
-            jsxs('div', { className: 'min-w-0', children: [
-              jsx('div', { className: 'truncate text-sm font-medium', children: title }),
-              row.session.preview ? jsx('p', { className: 'mt-0.5 line-clamp-1 text-xs text-(--ui-text-secondary)', children: row.session.preview }) : null,
-            ] }),
-            jsxs('div', { className: 'flex shrink-0 items-center gap-2', children: [
-              tagBadge(row.tag),
+          return jsxs('div', { className: 'flex flex-col gap-2 rounded-lg border border-(--dt-border) p-3 hover:bg-(--chrome-action-hover)', children: [
+            jsx('div', { className: 'break-words text-sm font-medium', children: title }),
+            row.session.preview ? jsx('p', { className: 'line-clamp-2 text-xs text-(--ui-text-secondary)', children: row.session.preview }) : null,
+            jsxs('div', { className: 'flex items-center justify-between gap-2', children: [
+              jsx('span', { className: 'truncate text-xs text-(--ui-text-secondary)', children: profileRouteLabel(row.route, data.routes) }),
               jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', 'aria-label': `Open tagged session ${title}`, onClick: () => host.openSession(row.sessionId, { route: row.route }).catch(() => setOpenError('Unable to open this session. Refresh and try again.')), children: 'Open' }),
             ] }),
           ] }, `${profileRouteKey(row.route)}:${row.sessionId}`);
         }),
-      ] }, group.key)),
-      visibleUnavailable.length ? jsxs('section', { 'aria-label': 'Session details unavailable', className: 'flex flex-col gap-2', children: [
-        jsx('h2', { className: 'text-sm font-medium', children: 'Session details unavailable' }),
-        jsx('p', { className: 'text-xs text-(--ui-text-secondary)', children: 'These tag assignments are preserved, but their sessions are outside the available profile results.' }),
-        ...visibleUnavailable.map((row) => jsxs('div', { role: 'group', 'aria-label': `Tagged session unavailable: ${row.sessionId}`, className: 'flex items-center justify-between gap-3 rounded-lg border border-(--dt-border) px-3 py-2', children: [
-          jsx('code', { className: 'truncate text-xs', children: row.sessionId }), tagBadge(row.tag),
+        ...group.unavailable.map((row) => jsxs('div', { role: 'group', 'aria-label': `Tagged session unavailable: ${row.sessionId}`, className: 'flex flex-col gap-1 rounded-lg border border-(--dt-border) p-3', children: [
+          jsx('code', { className: 'break-all text-xs', children: row.sessionId }),
+          jsx('span', { className: 'text-xs text-(--ui-text-secondary)', children: 'Session details unavailable' }),
         ] }, row.sessionId)),
-      ] }) : null,
-    ] }) : jsx(EmptyState, {
+        !group.rows.length && !group.unavailable.length ? jsx('p', { className: 'text-xs text-(--ui-text-secondary)', children: 'No matching sessions' }) : null,
+      ] }, group.id)),
+    }) : jsx(EmptyState, {
       title: Object.keys(prefs.sessionTags).length ? 'No matching sessions' : 'No tagged sessions yet',
       description: Object.keys(prefs.sessionTags).length ? 'Try a different profile, tag, or search term.' : 'Assign a Prisma tag from a session row to start.',
       className: 'min-h-48',
