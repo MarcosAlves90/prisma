@@ -1,0 +1,177 @@
+diff --git a/tests/plugin.test.mjs b/tests/plugin.test.mjs
+index 770e0a89ae9c2916fb052532f57018df5f7d65e4..45aa8afdcb273987ed3e69bd302e1e16f67dbf13 100644
+--- a/tests/plugin.test.mjs
++++ b/tests/plugin.test.mjs
+@@ -22,6 +22,7 @@ async function boot(saved) {
+   const profile = atom('dev');
+   const activeId = atom('session-a');
+   const applied = [];
++  const sessionColors = [];
+   const writes = [];
+   const contributions = [];
+   const settings = [];
+@@ -29,9 +30,15 @@ async function boot(saved) {
+   const previews = [];
+   const clearedPreviews = [];
+   let committedThemeChanges = 0;
++  let tagCounter = 0;
++  let hookValues = [];
++  let hookIndex = 0;
+   const sdk = {
+     atom,
+-    host: { state: { profile, focusedStoredSessionId: activeId } },
++    host: {
++      state: { profile, focusedStoredSessionId: activeId },
++      sessions: { setColor(sessionId, color) { sessionColors.push({ sessionId, color }); } },
++    },
+     PALETTE_AREA: 'palette',
+     THEMES_AREA: 'themes',
+     STATUSBAR_AREAS: { right: 'status-right' },
+@@ -44,10 +51,17 @@ async function boot(saved) {
+     useTheme() { return { theme: { name: 'midnight-dark', label: 'Midnight', description: 'test', colors: { background: '#101010', foreground: '#eeeeee', sidebarBackground: '#111111', primary: '#777777' }, darkColors: { background: '#090909', foreground: '#eeeeee', sidebarBackground: '#090909', primary: '#777777' } }, themeName: 'midnight', resolvedMode: 'dark', previewTheme(name, mode) { previews.push({ name, mode }); }, clearThemePreview() { clearedPreviews.push(true); }, setTheme() { committedThemeChanges += 1; } }; },
+     useValue(value) { return value.get(); },
+   };
+-  const react = { useEffect(effect) { const cleanup = effect(); if (cleanup) cleanups.push(cleanup); }, useState(value) { return [typeof value === 'function' ? value() : value, () => {}]; } };
++  const react = {
++    useEffect(effect) { const cleanup = effect(); if (cleanup) cleanups.push(cleanup); },
++    useState(value) {
++      const index = hookIndex++;
++      if (!Object.hasOwn(hookValues, index)) hookValues[index] = typeof value === 'function' ? value() : value;
++      return [hookValues[index], (next) => { hookValues[index] = typeof next === 'function' ? next(hookValues[index]) : next; }];
++    },
++  };
+   const jsx = (type, props, key) => ({ type, props: props ?? {}, key });
+   const jx = { jsx, jsxs: jsx };
+-  const context = vm.createContext({ Intl, Object, Array, String, RegExp, console });
++  const context = vm.createContext({ Intl, Object, Array, String, RegExp, console, crypto: { randomUUID: () => `tag-${tagCounter++}` } });
+   const entry = new vm.SourceTextModule(source, { context });
+   await entry.link((specifier) => {
+     const map = { '@hermes/plugin-sdk': sdk, react, 'react/jsx-runtime': jx };
+@@ -67,22 +81,51 @@ async function boot(saved) {
+   };
+   plugin.register(ctx);
+   const find = (id) => contributions.find((item) => item.id === id);
+-  function nodes(tree, predicate, found = []) {
++  function nodes(tree, predicate, found = [], nested = false) {
++    if (!nested) hookIndex = 0;
+     if (tree == null) return found;
+-    if (Array.isArray(tree)) { for (const item of tree) nodes(item, predicate, found); return found; }
++    if (Array.isArray(tree)) { for (const item of tree) nodes(item, predicate, found, true); return found; }
+     if (typeof tree !== 'object' || !('type' in tree)) return found;
+-    if (typeof tree.type === 'function') { nodes(tree.type(tree.props), predicate, found); return found; }
++    if (typeof tree.type === 'function') { nodes(tree.type(tree.props), predicate, found, true); return found; }
+     if (predicate(tree)) found.push(tree);
+-    nodes(tree.props.children, predicate, found);
++    nodes(tree.props.children, predicate, found, true);
+     return found;
+   }
+-  return { sdk, plugin, profile, activeId, applied, writes, contributions, settings, cleanups, previews, clearedPreviews, get committedThemeChanges() { return committedThemeChanges; }, find, nodes };
++  return { sdk, plugin, profile, activeId, applied, sessionColors, writes, contributions, settings, cleanups, previews, clearedPreviews, get committedThemeChanges() { return committedThemeChanges; }, find, nodes };
+ }
+ 
++test('Prisma supports creating and applying named session tags', async () => {
++  const app = await boot(null);
++  app.activeId.set('durable-root-1');
++  const renderMenu = () => app.find('status').render();
++  const nameInput = () => app.nodes(renderMenu(), (n) => n.props['aria-label'] === 'Tag name');
++  assert.equal(nameInput().length, 1, 'Prisma supports creating and applying named session tags');
++  nameInput()[0].props.onChange({ target: { value: 'Bug' } });
++  app.nodes(renderMenu(), (n) => n.props['aria-label'] === 'Tag emoji')[0].props.onChange({ target: { value: '🐛' } });
++  app.nodes(renderMenu(), (n) => n.props['aria-label'] === 'Tag color')[0].props.onChange({ target: { value: '#AA3344' } });
++  app.nodes(renderMenu(), (n) => n.props['aria-label'] === 'Create tag')[0].props.onClick();
++
++  const saved = app.writes.at(-1).value;
++  const [tagId] = Object.keys(saved.tags);
++  assert.deepEqual(saved.tags[tagId], { name: 'Bug', emoji: '🐛', color: '#AA3344' });
++  app.nodes(renderMenu(), (n) => n.props['aria-label'] === 'Assign Bug tag to session')[0].props.onClick();
++  assert.equal(app.writes.at(-1).value.sessionTags['durable-root-1'], tagId);
++  assert.deepEqual(app.sessionColors.at(-1), { sessionId: 'durable-root-1', color: '#AA3344' });
++
++  const row = () => app.find('session-tag').data.render({ sessionId: 'durable-root-1' });
++  const badge = app.nodes(row(), (n) => n.props['aria-label'] === 'Session tag Bug (🐛)');
++  assert.equal(badge[0].props.children, '🐛');
++  assert.equal(badge[0].props.style.backgroundColor, '#AA3344');
++
++  app.nodes(renderMenu(), (n) => n.props['aria-label'] === 'Clear session tag')[0].props.onClick();
++  assert.equal(Object.hasOwn(app.writes.at(-1).value.sessionTags, 'durable-root-1'), false);
++  assert.deepEqual(app.sessionColors.at(-1), { sessionId: 'durable-root-1', color: null });
++});
++
+ test('registers native UI surfaces and applies no override by default', async () => {
+   const app = await boot(null);
+   assert.equal(app.plugin.id, 'prisma');
+-  assert.deepEqual(app.contributions.map(({ id }) => id), ['status', 'session-emoji', 'reset-profile', 'clear-session']);
++  assert.deepEqual(app.contributions.map(({ id }) => id), ['status', 'session-tag', 'reset-profile', 'clear-session']);
+   assert.equal(app.settings.length, 1);
+   assert.equal(app.applied.at(-1), null);
+ });
+@@ -136,48 +179,36 @@ test('changing color through swatch persists only the active profile', async ()
+   assert.equal(Object.hasOwn(app.writes.at(-1).value.profileColors, 'other'), false);
+ });
+ 
+-test('session preset gets stored by durable session id and renders on its row', async () => {
+-  const app = await boot(null);
+-  const row = () => app.find('session-emoji').data.render({ sessionId: 'durable-root-1' });
+-  const applyButtons = app.nodes(row(), (n) => n.props['aria-label'] === 'Done');
+-  assert.equal(applyButtons.length, 1);
+-  applyButtons[0].props.onClick();
+-  assert.equal(app.writes.at(-1).value.sessionEmojis['durable-root-1'], '✅');
+-  const badge = app.nodes(row(), (n) => n.props['aria-label']?.includes('Change session emoji'));
+-  assert.equal(badge.length, 1);
+-  assert.equal(badge[0].props.children, '✅');
+-  app.activeId.set('durable-root-1');
+-  app.find('clear-session').data.run();
+-  assert.equal(Object.hasOwn(app.writes.at(-1).value.sessionEmojis, 'durable-root-1'), false);
+-});
+-
+-test('invalid color and non-emoji text in storage are discarded; teardown restores theme', async () => {
++test('invalid stored tags are discarded and legacy emojis remain visible until cleared', async () => {
+   const app = await boot({ profileColors: { dev: 'javascript:alert(1)' }, sessionEmojis: { 's-1': 'DROP TABLE', 's-2': '🧑🏽‍💻' } });
+   assert.equal(app.applied.at(-1), null);
+-  const row = app.find('session-emoji').data.render({ sessionId: 's-2' });
+-  const badge = app.nodes(row, (n) => n.props['aria-label']?.includes('Change session emoji'));
++  const row = app.find('session-tag').data.render({ sessionId: 's-2' });
++  const badge = app.nodes(row, (n) => n.props['aria-label'] === 'Legacy session emoji (🧑🏽‍💻)');
+   assert.equal(badge[0].props.children, '🧑🏽‍💻');
+-  const badRow = app.find('session-emoji').data.render({ sessionId: 's-1' });
+-  const blankBadge = app.nodes(badRow, (n) => n.props['aria-label'] === 'Assign session emoji');
++  assert.equal(badge[0].props.style.backgroundColor, undefined);
++  const badRow = app.find('session-tag').data.render({ sessionId: 's-1' });
++  const blankBadge = app.nodes(badRow, (n) => n.props['aria-label'] === 'Assign a session tag');
+   assert.equal(blankBadge[0].props.children, '+');
++  assert.equal(app.sessionColors.length, 0);
+   app.cleanups.forEach((fn) => fn());
+   assert.equal(app.applied.at(-1), null);
++  assert.equal(app.sessionColors.length, 0);
+   app.profile.set('other');
+   assert.equal(app.applied.at(-1), null);
+ });
+ 
+-test('persisted annotations and colors are restored by a new plugin instance', async () => {
+-  const first = await boot(null);
+-  const done = first.nodes(first.find('session-emoji').data.render({ sessionId: 'stable-123' }),
+-    (n) => n.props['aria-label'] === 'Done');
+-  done[0].props.onClick();
+-  const swatch = first.nodes(first.find('status').render(),
+-    (n) => n.props['aria-label'] === 'Apply color #196D31');
+-  swatch[0].props.onClick();
+-  const lastSaved = first.writes.at(-1).value;
+-  const second = await boot(lastSaved);
+-  assert.equal(second.applied.at(-1), '#196D31');
+-  const badges = second.nodes(second.find('session-emoji').data.render({ sessionId: 'stable-123' }),
+-    (n) => n.props['aria-label']?.includes('Change session emoji'));
++test('persisted tags and colors are restored by a new plugin instance', async () => {
++  const saved = {
++    profileColors: { dev: '#196D31' },
++    tags: { 'tag-1': { name: 'Done', emoji: '✅', color: '#112233' } },
++    sessionTags: { 'stable-123': 'tag-1' },
++    sessionEmojis: {},
++  };
++  const app = await boot(saved);
++  assert.equal(app.applied.at(-1), '#196D31');
++  assert.deepEqual(app.sessionColors.at(-1), { sessionId: 'stable-123', color: '#112233' });
++  const badges = app.nodes(app.find('session-tag').data.render({ sessionId: 'stable-123' }),
++    (n) => n.props['aria-label'] === 'Session tag Done (✅)');
+   assert.equal(badges[0].props.children, '✅');
++  assert.equal(badges[0].props.style.backgroundColor, '#112233');
+ });

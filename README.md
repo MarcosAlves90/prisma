@@ -1,13 +1,13 @@
 # Prisma — Hermes Desktop plugin
 
-Prisma adds **persistent accent colors per profile** and **session emoji markers** to Hermes Desktop.
+Prisma adds **persistent accent colors per profile** and **custom colored emoji tags for sessions** to Hermes Desktop.
 
 ## Features
 
 - Profile accent color follows the current Hermes Desktop profile. It is persisted in plugin-scoped storage and restored on profile switch or restart. The app-wide and sidebar backgrounds use a much darker shade of that accent via a temporary theme preview labeled **Prisma**, with the profile, accent, and base theme in its description; clearing the color or disabling Prisma restores the user's committed theme.
 - Color input (native color picker + hexadecimal entry + ten preset swatches) and **Restore** action.
-- Select a session emoji from ten named status presets or enter any one-grapheme custom emoji (including compound emojis). Clear it when no longer needed.
-- Emoji is shown in each sidebar session row, with `+` to set an emoji when empty. Click a marker to edit that session directly, or use the status-bar Prisma popover for the focused session.
+- Create a tag with a name, one emoji, and a color, then assign one tag per session. The session row shows the emoji on a color-backed badge, and the session color indicator uses the tag color.
+- Assign or clear a tag from the session-row popover, or manage tags and the focused session from the Prisma status-bar popover or settings page.
 - Settings page under **Settings → Plugins → Prisma**, plus two commands in the command palette.
 - Session annotations are keyed by **stored/durable session ID**, so they survive session ID rotations caused by context compression.
 
@@ -31,20 +31,22 @@ In Hermes Desktop, open **Capabilities → Plugins** and enable **Prisma** if it
 ## Use
 
 1. Use the **Prisma** control in the bottom-right status bar to select an accent for the currently active profile. On switching profiles, each saved color is restored.
-2. Click the **+** (or existing emoji) in a session row to assign/change its marker, or choose an emoji for the focused session in the Prisma control.
-3. Choose a preset: 📝 Planning; 🔍 Investigating; ⚙️ In progress; ⏸️ Paused; 🚧 Blocked; 🧪 Testing; ✅ Done; ❌ Failed; ⭐ Priority; 💡 Idea. Or type a custom emoji.
-4. **Restore** clears only the current profile's color. **Clear** removes only the selected session's emoji.
+2. Open Prisma from the status bar or settings page and create a tag by entering its name, emoji, and color.
+3. Click **+** in a session row and select a tag. One tag is assigned per session; selecting another replaces it. Use **Clear tag** to remove it.
+4. **Restore** clears only the current profile's color. **Clear tag** removes only the focused session's tag.
 
 ## Technical notes and limitations
 
 - **Hermes Desktop only.** It does not change classic terminal, Discord, Telegram, or web dashboard session lists.
-- Requires a Hermes Desktop build with the SDK's `SESSION_ROW_AREAS`, `host.state.focusedStoredSessionId`, `ctx.storage`, and `setAccentOverride` APIs. These are described in the current [Desktop Plugin SDK](https://hermes-agent.nousresearch.com/docs/developer-guide/desktop-plugin-sdk). Compatibility with an installed Hermes version must be checked in the actual app.
+- Requires a Hermes Desktop build with the SDK's `SESSION_ROW_AREAS`, `host.state.focusedStoredSessionId`, `host.sessions.setColor`, `ctx.storage`, and `setAccentOverride` APIs. These are described in the current [Desktop Plugin SDK](https://hermes-agent.nousresearch.com/docs/developer-guide/desktop-plugin-sdk). Compatibility with an installed Hermes version must be checked in the actual app.
+- The public plugin API cannot color the full session-row background. Prisma colors the emoji badge and the SDK's session color indicator instead.
+- Applying a tag uses the SDK's per-session color override. It replaces any existing manual color override; clearing the tag returns the session to its inherited project color.
 - The accent override is a **single app-wide value** owned by the SDK. Do not enable Prisma alongside **Accent Picker** or another plugin writing `setAccentOverride`: concurrent writes may overwrite each other.
 - Stored color isolation uses the **active profile identifier** supplied by `host.state.profile`. Two unrelated remote Hermes gateways with exactly the same profile identifier may share the color in one app installation; the SDK does not provide a gateway identity in the profile atom.
-- Emoji markers reflect the **manually selected status**. They do not automatically track whether the agent is running, blocked, or finished. That requires a separate status-to-emoji policy.
-- Emoji annotations are stored locally in the desktop plugin's storage, scoped to its app instance. They do not sync to all devices, and are not guaranteed to be included in Hermes profile export/import.
+- Tags reflect the **manually selected label**. They do not automatically track whether the agent is running, blocked, or finished.
+- Tag definitions and assignments are stored locally in the desktop plugin's storage, scoped to its app instance. They do not sync to all devices, and are not guaranteed to be included in Hermes profile export/import. Existing emoji-only assignments are preserved until replaced or cleared, without an invented tag color.
 - No Hermes source modifications, DOM scraping, external requests, additional packages, or file-system permissions are needed at runtime.
-- Disabling Prisma clears the applied override for the app session, but preserves preferences so re-enabling restores them.
+- Disabling Prisma clears tag-applied session color overrides, but preserves tags and assignments so re-enabling restores them.
 
 ## Validation
 

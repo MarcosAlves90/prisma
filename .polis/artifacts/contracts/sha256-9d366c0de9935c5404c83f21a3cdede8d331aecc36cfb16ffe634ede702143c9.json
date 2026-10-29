@@ -1,0 +1,216 @@
+{
+  "schema_version": 6,
+  "kind": "feature",
+  "scope": {
+    "allowed_paths": [
+      "desktop/plugin.js",
+      "tests/plugin.test.mjs",
+      "README.md"
+    ]
+  },
+  "test_scope": {
+    "allowed_paths": [
+      "tests/plugin.test.mjs"
+    ]
+  },
+  "development_method": "strict_sdd_tdd_v2",
+  "specification": {
+    "objective": "Replace free-form session emoji choices with user-created colored emoji tags that can be assigned to sessions.",
+    "requirements": [
+      {
+        "id": "REQ-TAG-1",
+        "statement": "Users can create a session tag with a non-empty name, one valid emoji, and a valid six-digit hex color."
+      },
+      {
+        "id": "REQ-TAG-2",
+        "statement": "Users can assign one existing tag to a session; its emoji is shown on the session-row badge and its color is used for the badge and the SDK session color indicator."
+      },
+      {
+        "id": "REQ-TAG-3",
+        "statement": "Tag definitions and durable-session assignments persist in plugin storage and are restored after plugin reload."
+      },
+      {
+        "id": "REQ-TAG-4",
+        "statement": "Existing emoji-only session assignments remain visible until replaced or cleared, without guessing a color for them."
+      }
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-TAG-1",
+        "statement": "A user can create a named tag with an emoji and color, then assign it to a session from the plugin UI.",
+        "requirements": [
+          "REQ-TAG-1",
+          "REQ-TAG-2"
+        ],
+        "proof": "regression"
+      },
+      {
+        "id": "AC-TAG-2",
+        "statement": "The session row shows the tag emoji on a badge with the tag color, and the SDK receives the same per-session color keyed by the durable session ID.",
+        "requirements": [
+          "REQ-TAG-2"
+        ],
+        "proof": "regression"
+      },
+      {
+        "id": "AC-TAG-3",
+        "statement": "Tag definitions and assignments survive reload; clearing an applied tag clears its color override.",
+        "requirements": [
+          "REQ-TAG-3"
+        ],
+        "proof": "regression"
+      },
+      {
+        "id": "AC-TAG-4",
+        "statement": "Legacy emoji assignments remain visible until the user replaces or clears them; no background color is guessed for legacy entries.",
+        "requirements": [
+          "REQ-TAG-4"
+        ],
+        "proof": "regression"
+      }
+    ],
+    "invariants": [
+      {
+        "id": "INV-TAG-1",
+        "statement": "Profile accent colors and the accent-derived app background continue to work unchanged."
+      },
+      {
+        "id": "INV-TAG-2",
+        "statement": "The feature uses the public host.sessions.setColor API and does not modify Hermes Desktop core."
+      },
+      {
+        "id": "INV-TAG-3",
+        "statement": "Session assignments remain keyed by durable stored session IDs."
+      }
+    ],
+    "forbidden_states": [
+      {
+        "id": "FORBID-TAG-1",
+        "statement": "A tag with an invalid name, emoji, or color is stored."
+      },
+      {
+        "id": "FORBID-TAG-2",
+        "statement": "An invalid or missing tag ID is applied to a session."
+      },
+      {
+        "id": "FORBID-TAG-3",
+        "statement": "Legacy emoji-only annotations are silently discarded or assigned an invented color."
+      },
+      {
+        "id": "FORBID-TAG-4",
+        "statement": "The full session-row background is changed through unsupported DOM or CSS manipulation."
+      }
+    ],
+    "inputs": [
+      {
+        "id": "INPUT-TAG-1",
+        "statement": "User-entered tag name, emoji, and color; the durable ID of the target session; and existing plugin preferences."
+      }
+    ],
+    "outputs": [
+      {
+        "id": "OUTPUT-TAG-1",
+        "statement": "Persisted tag definitions and session-tag assignments; a colored emoji badge; and the SDK per-session color override."
+      }
+    ],
+    "failure_semantics": [
+      {
+        "id": "FAIL-TAG-1",
+        "statement": "Invalid tag input is rejected without modifying persisted preferences or session colors."
+      },
+      {
+        "id": "FAIL-TAG-2",
+        "statement": "Clearing a tag removes its assignment and clears the session color override."
+      }
+    ]
+  },
+  "baseline_lock": {
+    "git_object_format": "sha1",
+    "base_commit": "3395e29f1b84bcde38cae2d53f63a98f0fa2433a",
+    "base_tree": "833a12d5f72ee9945836552f1a5423bc55219e9b",
+    "policy_sha256": "a86288cc77675ea8449846f20025260e4042ea3181f1779f1db21fdacf877d0b",
+    "specification_sha256": "ec1efbe56d77c52d54cd88f7062ded328e1172fba5f7039a5c59617362b39453"
+  },
+  "behavior": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "affected": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "regression": {
+    "mode": "red_green",
+    "command": {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "--test",
+        "tests/plugin.test.mjs"
+      ],
+      "cwd": ".",
+      "timeout_seconds": 1200,
+      "environment": {
+        "mode": "clean",
+        "pass": [
+          "PATH",
+          "HOME",
+          "TMPDIR",
+          "TMP",
+          "TEMP",
+          "SystemRoot",
+          "COMSPEC",
+          "PATHEXT",
+          "USERPROFILE",
+          "LOCALAPPDATA"
+        ]
+      }
+    },
+    "baseline_exit_code": 1,
+    "baseline_output_contains": [
+      "Prisma supports creating and applying named session tags"
+    ]
+  }
+}
