@@ -1,0 +1,173 @@
+{
+  "schema_version": 6,
+  "kind": "defect",
+  "scope": {
+    "allowed_paths": [
+      "desktop/plugin.js",
+      "tests/plugin.test.mjs",
+      "README.md"
+    ]
+  },
+  "test_scope": {
+    "allowed_paths": [
+      "tests/plugin.test.mjs"
+    ]
+  },
+  "development_method": "strict_sdd_tdd_v2",
+  "specification": {
+    "objective": "Make the session-tag choices more subtle while keeping the names legible and the choices visually separated.",
+    "requirements": [
+      {
+        "id": "REQ-TAG-7",
+        "statement": "Tag-choice buttons use a translucent fill derived from the selected tag color, at approximately 25% opacity."
+      },
+      {
+        "id": "REQ-TAG-8",
+        "statement": "Tag choices have no individual border and remain separated by spacing."
+      },
+      {
+        "id": "REQ-TAG-9",
+        "statement": "Tag-name text color is chosen for contrast against the visible composite of the translucent tag color and the hosting surface."
+      }
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-TAG-6",
+        "statement": "The tag editor renders tag choices with a 25%-opacity color fill, no individual border, and spacing between choices; the name ink is selected against the composite background using the SDK readableOn helper.",
+        "requirements": [
+          "REQ-TAG-7",
+          "REQ-TAG-8",
+          "REQ-TAG-9"
+        ],
+        "proof": "regression"
+      }
+    ],
+    "invariants": [
+      {
+        "id": "INV-TAG-4",
+        "statement": "Tag creation, assignment, persistence, the session-row badge, and the full session color indicator remain unchanged."
+      },
+      {
+        "id": "INV-TAG-5",
+        "statement": "The tag editor uses the correct rendered surface color for each host surface, including the status popover, settings page, and session-row popover."
+      }
+    ],
+    "forbidden_states": [
+      {
+        "id": "FORBID-TAG-7",
+        "statement": "A tag choice uses an opaque color fill or a per-tag border as a separator."
+      },
+      {
+        "id": "FORBID-TAG-8",
+        "statement": "The name ink is chosen from the original tag color while ignoring the translucent composite background."
+      }
+    ],
+    "inputs": [
+      {
+        "id": "INPUT-TAG-2",
+        "statement": "The tag's six-digit hex color and the rendered background color of the tag editor's host surface."
+      }
+    ],
+    "outputs": [
+      {
+        "id": "OUTPUT-TAG-2",
+        "statement": "A translucent tag-choice fill, borderless spaced choices, and contrast-aware tag-name text."
+      }
+    ],
+    "failure_semantics": [
+      {
+        "id": "FAIL-TAG-3",
+        "statement": "If the host surface color cannot be parsed, the tag editor falls back to contrast selection against the tag color rather than failing to render."
+      }
+    ]
+  },
+  "baseline_lock": {
+    "git_object_format": "sha1",
+    "base_commit": "ccb06bbab8f796934b4a8fe877d77650e1850333",
+    "base_tree": "83706c2989ce6380f13efed83bc5334ef9c93a93",
+    "policy_sha256": "e79833ebc3a6aa4d452d938a53633435aac6943865e9798f6506fe2dcf650378",
+    "specification_sha256": "bf3219082f0b51d48bd0351b0dba5de5c536fe60c3ea77403cadfac93216aa0e"
+  },
+  "behavior": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "affected": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "regression": {
+    "mode": "red_green",
+    "command": {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "--test",
+        "tests/plugin.test.mjs"
+      ],
+      "cwd": ".",
+      "timeout_seconds": 1200,
+      "environment": {
+        "mode": "clean",
+        "pass": [
+          "PATH",
+          "HOME",
+          "TMPDIR",
+          "TMP",
+          "TEMP",
+          "SystemRoot",
+          "COMSPEC",
+          "PATHEXT",
+          "USERPROFILE",
+          "LOCALAPPDATA"
+        ]
+      }
+    },
+    "baseline_exit_code": 1,
+    "baseline_output_contains": [
+      "tag picker uses a translucent fill, no borders, spacing, and readable text"
+    ]
+  }
+}

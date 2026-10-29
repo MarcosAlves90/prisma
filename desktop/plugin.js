@@ -23,6 +23,7 @@ import { jsx, jsxs } from 'react/jsx-runtime';
 
 const VERSION = 2;
 const FALLBACK_COLOR = '#4A84FE';
+const TAG_FILL_ALPHA = 0x40;
 const COLORS = ['#4A84FE', '#8250DF', '#BF3989', '#196D31', '#BC4C00', '#0E7490', '#E11D48', '#EAB308', '#64748B', '#14B8A6'];
 
 const record = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -31,6 +32,16 @@ const normColor = (value) => validColor(value) ? value.toUpperCase() : null;
 const darkColor = (value) => {
   const color = normColor(value);
   return color ? `#${[1, 3, 5].map((index) => Math.floor(parseInt(color.slice(index, index + 2), 16) * 0.08).toString(16).padStart(2, '0')).join('')}`.toUpperCase() : null;
+};
+const compositeColor = (color, surface) => {
+  const foreground = normColor(color);
+  const background = normColor(surface);
+  if (!foreground || !background) return foreground ?? FALLBACK_COLOR;
+  return `#${[1, 3, 5].map((index) => {
+    const front = parseInt(foreground.slice(index, index + 2), 16);
+    const back = parseInt(background.slice(index, index + 2), 16);
+    return Math.round((front * TAG_FILL_ALPHA + back * (0xff - TAG_FILL_ALPHA)) / 0xff).toString(16).padStart(2, '0');
+  }).join('')}`.toUpperCase();
 };
 const profileId = (value) => typeof value === 'string' && value.length ? value : 'default';
 
@@ -209,7 +220,7 @@ function ColorEditor({ ctrl }) {
   ] });
 }
 
-function TagEditor({ ctrl, sessionId, showCreate = true }) {
+function TagEditor({ ctrl, sessionId, surfaceColor, showCreate = true }) {
   const prefs = useValue(ctrl.$prefs);
   const selectedTagId = sessionId && Object.hasOwn(prefs.sessionTags, sessionId) ? prefs.sessionTags[sessionId] : null;
   const legacyEmoji = sessionId && !selectedTagId && Object.hasOwn(prefs.sessionEmojis, sessionId) ? prefs.sessionEmojis[sessionId] : null;
@@ -228,8 +239,8 @@ function TagEditor({ ctrl, sessionId, showCreate = true }) {
           key: id, type: 'button', disabled: !sessionId,
           title: sessionId ? `Assign ${tag.name} (${tag.emoji})` : `${tag.name} (open a session to assign)`,
           'aria-label': sessionId ? `Assign ${tag.name} tag to session` : `${tag.name} tag`, 'aria-pressed': selected,
-          className: 'flex items-center gap-2 rounded border border-(--dt-border) px-2 py-1 text-left text-[11px] hover:opacity-90 focus-visible:outline',
-          style: { backgroundColor: tag.color, color: readableOn(tag.color), outline: selected ? '2px solid var(--ui-text-primary)' : undefined, outlineOffset: 1 },
+          className: 'flex items-center gap-2 rounded px-2 py-1 text-left text-[11px] hover:opacity-90 focus-visible:outline',
+          style: { backgroundColor: `${tag.color}${TAG_FILL_ALPHA.toString(16).padStart(2, '0')}`, color: readableOn(compositeColor(tag.color, surfaceColor)) },
           onClick: () => { if (sessionId) ctrl.setSessionTag(sessionId, id); },
           children: jsxs('span', { className: 'flex items-center gap-2', children: [jsx('span', { 'aria-hidden': true, children: tag.emoji }), jsx('span', { children: tag.name })] }),
         }, id);
@@ -254,11 +265,14 @@ function TagEditor({ ctrl, sessionId, showCreate = true }) {
 
 function PrismaMenu({ ctrl, sessionId }) {
   const profile = useValue(host.state.profile);
+  const { theme } = useTheme();
+  const background = ctrl.backgroundFor(profile);
+  const surfaceColor = background ?? theme.colors.popover ?? theme.colors.background;
   useValue(ctrl.$prefs);
-  return jsxs('div', { className: 'flex w-[278px] flex-col gap-3 p-3', style: { backgroundColor: ctrl.backgroundFor(profile) ?? undefined }, children: [
+  return jsxs('div', { className: 'flex w-[278px] flex-col gap-3 p-3', style: { backgroundColor: background ?? undefined }, children: [
     jsx(ColorEditor, { ctrl }),
     jsx('hr', { className: 'border-(--dt-border)' }),
-    jsx(TagEditor, { ctrl, sessionId }),
+    jsx(TagEditor, { ctrl, sessionId, surfaceColor }),
   ] });
 }
 
@@ -338,6 +352,8 @@ function StatusControl({ ctrl, ctx }) {
 }
 
 function RowControl({ ctrl, sessionId }) {
+  const { theme } = useTheme();
+  const surfaceColor = theme.colors.popover ?? theme.colors.background;
   const prefs = useValue(ctrl.$prefs);
   const tagId = prefs.sessionTags[sessionId];
   const tag = tagId ? prefs.tags[tagId] : null;
@@ -357,7 +373,7 @@ function RowControl({ ctrl, sessionId }) {
     }) }),
     jsx(PopoverContent, { side: 'right', align: 'start', className: 'w-auto p-0',
       onClick: (event) => event.stopPropagation(),
-      children: jsx('div', { className: 'w-[260px] p-3', children: jsx(TagEditor, { ctrl, sessionId, showCreate: false }) }),
+      children: jsx('div', { className: 'w-[260px] p-3', children: jsx(TagEditor, { ctrl, sessionId, surfaceColor, showCreate: false }) }),
     }),
   ] });
 }
@@ -365,13 +381,16 @@ function RowControl({ ctrl, sessionId }) {
 function SettingsPage({ ctrl }) {
   const profile = useValue(host.state.profile);
   const sessionId = useValue(host.state.focusedStoredSessionId);
+  const { theme } = useTheme();
+  const background = ctrl.backgroundFor(profile);
+  const surfaceColor = background ?? theme.colors.background;
   useValue(ctrl.$prefs);
-  return jsxs('div', { className: 'flex max-w-[440px] flex-col gap-4 p-4', style: { backgroundColor: ctrl.backgroundFor(profile) ?? undefined }, children: [
+  return jsxs('div', { className: 'flex max-w-[440px] flex-col gap-4 p-4', style: { backgroundColor: background ?? undefined }, children: [
     jsx('h2', { className: 'text-base font-semibold', children: 'Prisma' }),
     jsx('p', { className: 'text-xs text-(--ui-text-secondary)', children: 'Persistent profile colors and custom emoji tags for sessions. Also available in the status bar and session rows.' }),
     jsx(ColorEditor, { ctrl }),
     jsx('hr', { className: 'border-(--dt-border)' }),
-    jsx(TagEditor, { ctrl, sessionId }),
+    jsx(TagEditor, { ctrl, sessionId, surfaceColor }),
   ] });
 }
 

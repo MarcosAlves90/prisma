@@ -1,0 +1,50 @@
+diff --git a/tests/plugin.test.mjs b/tests/plugin.test.mjs
+index 1990969f353055adddabd26bc0b084307b49a7d7..f2786d025dff8a548ea4299cb30fa6308276ca1d 100644
+--- a/tests/plugin.test.mjs
++++ b/tests/plugin.test.mjs
+@@ -23,6 +23,7 @@ async function boot(saved) {
+   const activeId = atom('session-a');
+   const applied = [];
+   const sessionColors = [];
++  const readableInputs = [];
+   const writes = [];
+   const contributions = [];
+   const settings = [];
+@@ -47,7 +48,7 @@ async function boot(saved) {
+     PopoverTrigger: function PopoverTrigger({ children }) { return children; },
+     PopoverContent: function PopoverContent({ children }) { return children; },
+     setAccentOverride(value) { applied.push(value); },
+-    readableOn() { return '#FFFFFF'; },
++    readableOn(background) { readableInputs.push(background); return background === '#EFFF00' ? '#000000' : '#FFFFFF'; },
+     useTheme() { return { theme: { name: 'midnight-dark', label: 'Midnight', description: 'test', colors: { background: '#101010', foreground: '#eeeeee', sidebarBackground: '#111111', primary: '#777777' }, darkColors: { background: '#090909', foreground: '#eeeeee', sidebarBackground: '#090909', primary: '#777777' } }, themeName: 'midnight', resolvedMode: 'dark', previewTheme(name, mode) { previews.push({ name, mode }); }, clearThemePreview() { clearedPreviews.push(true); }, setTheme() { committedThemeChanges += 1; } }; },
+     useValue(value) { return value.get(); },
+   };
+@@ -91,7 +92,7 @@ async function boot(saved) {
+     nodes(tree.props.children, predicate, found, true);
+     return found;
+   }
+-  return { sdk, plugin, profile, activeId, applied, sessionColors, writes, contributions, settings, cleanups, previews, clearedPreviews, get committedThemeChanges() { return committedThemeChanges; }, find, nodes };
++  return { sdk, plugin, profile, activeId, applied, sessionColors, readableInputs, writes, contributions, settings, cleanups, previews, clearedPreviews, get committedThemeChanges() { return committedThemeChanges; }, find, nodes };
+ }
+ 
+ test('Prisma supports creating and applying named session tags', async () => {
+@@ -232,3 +233,19 @@ test('session tag badge uses a semi-transparent tag color', async () => {
+   assert.equal(badge[0].props.style.backgroundColor, '#11223380');
+   assert.deepEqual(app.sessionColors.at(-1), { sessionId: 'durable-session', color: '#112233' });
+ });
++
++test('tag picker uses a translucent fill, no borders, spacing, and readable text', async () => {
++  const app = await boot({
++    tags: { bright: { name: 'Bright', emoji: '☀️', color: '#EFFF00' } },
++    sessionTags: {},
++    sessionEmojis: {},
++  });
++  const menu = app.find('status').render();
++  const choice = app.nodes(menu, (n) => n.props['aria-label'] === 'Assign Bright tag to session')[0];
++  assert.equal(choice.props.style.backgroundColor, '#EFFF0040');
++  assert.equal(choice.props.style.color, '#FFFFFF');
++  assert.equal(app.readableInputs.at(-1), '#484C0C');
++  assert.doesNotMatch(choice.props.className, /\bborder\b|border-/);
++  const list = app.nodes(menu, (n) => n.props.className?.includes('max-h-36'))[0];
++  assert.match(list.props.className, /\bgap-1\b/);
++});
