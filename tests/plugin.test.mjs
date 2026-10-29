@@ -522,3 +522,10 @@ test('tagged sessions can be filtered by profile and tag, searched, and opened',
   nodes = taggedPageNodes(app);
   assert.equal(nodes.some((node) => node.type === 'empty-state' && node.props.title === 'No matching sessions'), true);
 });
+
+test('README cover image and PNG asset', () => {
+  const readme = fs.readFileSync(path.resolve(cwd, '../README.md'), 'utf8');
+  assert.ok(readme.includes('![Prisma plugin cover](assets/prisma-cover.png)'), 'README embeds the repository-relative cover');
+  const image = fs.readFileSync(path.resolve(cwd, '../assets/prisma-cover.png'));
+  assert.deepEqual([...image.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+});

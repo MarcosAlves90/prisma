@@ -1,0 +1,171 @@
+{
+  "schema_version": 6,
+  "kind": "feature",
+  "scope": {
+    "allowed_paths": [
+      "README.md",
+      "assets/prisma-cover.png",
+      "tests/plugin.test.mjs"
+    ]
+  },
+  "test_scope": {
+    "allowed_paths": [
+      "tests/plugin.test.mjs"
+    ]
+  },
+  "development_method": "strict_sdd_tdd_v2",
+  "specification": {
+    "objective": "Add the supplied Prisma cover image to the repository and display it in the README.",
+    "requirements": [
+      {
+        "id": "REQ-COVER-1",
+        "statement": "The repository contains the exact supplied PNG at assets/prisma-cover.png."
+      },
+      {
+        "id": "REQ-COVER-2",
+        "statement": "The README displays the cover image near its title using an accessible description and repository-relative path."
+      }
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-COVER-1",
+        "statement": "The copied asset is a valid PNG with bytes identical to the supplied source image.",
+        "requirements": [
+          "REQ-COVER-1"
+        ],
+        "proof": "regression"
+      },
+      {
+        "id": "AC-COVER-2",
+        "statement": "The README embeds assets/prisma-cover.png directly below the title with non-empty alt text.",
+        "requirements": [
+          "REQ-COVER-2"
+        ],
+        "proof": "regression"
+      }
+    ],
+    "invariants": [
+      {
+        "id": "INV-COVER-1",
+        "statement": "No plugin runtime code or unrelated README content changes."
+      }
+    ],
+    "forbidden_states": [
+      {
+        "id": "FORBID-COVER-1",
+        "statement": "The README image link is broken, has empty alt text, or points outside the repository."
+      },
+      {
+        "id": "FORBID-COVER-2",
+        "statement": "The supplied image bytes are recompressed or otherwise changed."
+      }
+    ],
+    "inputs": [
+      {
+        "id": "INPUT-COVER-1",
+        "statement": "The user-provided image file in Downloads."
+      }
+    ],
+    "outputs": [
+      {
+        "id": "OUTPUT-COVER-1",
+        "statement": "A repository asset and a README cover image embedding."
+      }
+    ],
+    "failure_semantics": [
+      {
+        "id": "FAIL-COVER-1",
+        "statement": "A missing asset or README reference fails the regression test."
+      }
+    ]
+  },
+  "baseline_lock": {
+    "git_object_format": "sha1",
+    "base_commit": "462e2f6fa5859c37f3b0b415bd903c1f8a1dc2cd",
+    "base_tree": "99501d5d725bdfb03ada1626854dceb0b56f3d47",
+    "policy_sha256": "e79833ebc3a6aa4d452d938a53633435aac6943865e9798f6506fe2dcf650378",
+    "specification_sha256": "d7b2ebf04f968ddf71772dbab93a4fa918955cc375df3286b4c5ec8d2ca9ae6d"
+  },
+  "behavior": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "affected": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "regression": {
+    "mode": "red_green",
+    "command": {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "--test",
+        "tests/plugin.test.mjs"
+      ],
+      "cwd": ".",
+      "timeout_seconds": 1200,
+      "environment": {
+        "mode": "clean",
+        "pass": [
+          "PATH",
+          "HOME",
+          "TMPDIR",
+          "TMP",
+          "TEMP",
+          "SystemRoot",
+          "COMSPEC",
+          "PATHEXT",
+          "USERPROFILE",
+          "LOCALAPPDATA"
+        ]
+      }
+    },
+    "baseline_exit_code": 1,
+    "baseline_output_contains": [
+      "README cover image and PNG asset"
+    ]
+  }
+}

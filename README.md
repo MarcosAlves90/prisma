@@ -1,5 +1,7 @@
 # Prisma — Hermes Desktop plugin
 
+![Prisma plugin cover](assets/prisma-cover.png)
+
 Prisma adds **persistent accent colors per profile** and **custom colored emoji tags for sessions** to Hermes Desktop.
 
 ## Features
