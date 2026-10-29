@@ -25,16 +25,16 @@ const VERSION = 1;
 const FALLBACK_COLOR = '#4A84FE';
 const COLORS = ['#4A84FE', '#8250DF', '#BF3989', '#196D31', '#BC4C00', '#0E7490', '#E11D48', '#EAB308', '#64748B', '#14B8A6'];
 const STATUS_PRESETS = [
-  { emoji: '📝', name: 'Planejamento' },
-  { emoji: '🔍', name: 'Investigação' },
-  { emoji: '⚙️', name: 'Em andamento' },
-  { emoji: '⏸️', name: 'Pausada' },
-  { emoji: '🚧', name: 'Bloqueada' },
-  { emoji: '🧪', name: 'Testes' },
-  { emoji: '✅', name: 'Concluída' },
-  { emoji: '❌', name: 'Falhou' },
-  { emoji: '⭐', name: 'Prioritária' },
-  { emoji: '💡', name: 'Ideia' },
+  { emoji: '📝', name: 'Planning' },
+  { emoji: '🔍', name: 'Investigating' },
+  { emoji: '⚙️', name: 'In progress' },
+  { emoji: '⏸️', name: 'Paused' },
+  { emoji: '🚧', name: 'Blocked' },
+  { emoji: '🧪', name: 'Testing' },
+  { emoji: '✅', name: 'Done' },
+  { emoji: '❌', name: 'Failed' },
+  { emoji: '⭐', name: 'Priority' },
+  { emoji: '💡', name: 'Idea' },
 ];
 
 const record = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -144,17 +144,17 @@ function ColorEditor({ ctrl }) {
   useEffect(() => setTyped(savedColor ?? FALLBACK_COLOR), [currentProfile, savedColor]);
 
   return jsxs('section', { className: 'flex flex-col gap-2', children: [
-    jsx('h3', { className: headingClass, children: 'Cor do perfil' }),
+    jsx('h3', { className: headingClass, children: 'Profile color' }),
     jsxs('div', { className: 'flex items-center gap-2', children: [
       jsx('input', {
         type: 'color', value: savedColor ?? FALLBACK_COLOR,
         className: 'h-7 w-9 cursor-pointer border-0 bg-transparent p-0',
-        'aria-label': 'Selecionar cor do perfil',
+        'aria-label': 'Select profile color',
         onChange: (event) => ctrl.setProfileColor(event.target.value),
       }),
       jsx('input', {
         type: 'text', value: typed, spellCheck: false, maxLength: 7,
-        'aria-label': 'Cor hexadecimal do perfil',
+        'aria-label': 'Profile color in hexadecimal',
         className: 'min-w-0 flex-1 rounded border border-(--dt-border) bg-transparent px-2 py-1 font-mono text-[11px]',
         onChange: (event) => {
           setTyped(event.target.value);
@@ -163,11 +163,11 @@ function ColorEditor({ ctrl }) {
         onBlur: () => setTyped(ctrl.accentFor(host.state.profile.get()) ?? FALLBACK_COLOR),
       }),
       jsx('button', { type: 'button', className: buttonClass,
-        onClick: () => ctrl.setProfileColor(null), children: 'Restaurar' }),
+        onClick: () => ctrl.setProfileColor(null), children: 'Restore' }),
     ] }),
     jsx('div', { className: 'grid grid-cols-10 gap-1', children: COLORS.map((color) =>
       jsx('button', { key: color, type: 'button', title: color,
-        'aria-label': `Aplicar cor ${color}`,
+        'aria-label': `Apply color ${color}`,
         'aria-pressed': savedColor === color,
         onClick: () => ctrl.setProfileColor(color),
         className: 'h-5 rounded-sm border border-(--dt-border) focus-visible:outline',
@@ -175,7 +175,7 @@ function ColorEditor({ ctrl }) {
       }, color)),
     }),
     jsx('p', { className: 'text-[10px] text-(--ui-text-tertiary)',
-      children: `Perfil: ${currentProfile || 'default'} · ${savedColor ?? 'cor original do tema'}` }),
+      children: `Profile: ${currentProfile || 'default'} · ${savedColor ?? 'theme default color'}` }),
   ] });
 }
 
@@ -186,7 +186,7 @@ function EmojiEditor({ ctrl, sessionId }) {
   const normalized = normEmoji(custom);
 
   return jsxs('section', { className: 'flex flex-col gap-2', children: [
-    jsx('h3', { className: headingClass, children: 'Emoji da sessão' }),
+    jsx('h3', { className: headingClass, children: 'Session emoji' }),
     sessionId ? jsxs('div', { className: 'grid grid-cols-5 gap-1', children: STATUS_PRESETS.map((item) =>
       jsx('button', {
         key: item.emoji, type: 'button', title: item.name,
@@ -195,11 +195,11 @@ function EmojiEditor({ ctrl, sessionId }) {
         onClick: () => ctrl.setSessionEmoji(sessionId, item.emoji),
         children: item.emoji,
       }, item.emoji)),
-    }) : jsx('p', { className: 'text-[11px] text-(--ui-text-tertiary)', children: 'Abra uma sessão para atribuir um emoji.' }),
+    }) : jsx('p', { className: 'text-[11px] text-(--ui-text-tertiary)', children: 'Open a session to assign an emoji.' }),
     sessionId ? jsxs('div', { className: 'flex items-center gap-1.5', children: [
       jsx('input', {
         type: 'text', value: custom, maxLength: 32, spellCheck: false,
-        placeholder: 'Outro emoji…', 'aria-label': 'Emoji personalizado',
+        placeholder: 'Another emoji…', 'aria-label': 'Custom emoji',
         className: 'min-w-0 flex-1 rounded border border-(--dt-border) bg-transparent px-2 py-1 text-[12px]',
         onChange: (event) => setCustom(event.target.value),
         onKeyDown: (event) => {
@@ -208,12 +208,12 @@ function EmojiEditor({ ctrl, sessionId }) {
       }),
       jsx('button', { type: 'button', disabled: !normalized, className: buttonClass,
         onClick: () => { if (normalized) { ctrl.setSessionEmoji(sessionId, normalized); setCustom(''); } },
-        children: 'Aplicar' }),
+        children: 'Apply' }),
       jsx('button', { type: 'button', disabled: !selected, className: buttonClass,
-        onClick: () => ctrl.setSessionEmoji(sessionId, null), children: 'Limpar' }),
+        onClick: () => ctrl.setSessionEmoji(sessionId, null), children: 'Clear' }),
     ] }) : null,
     jsx('p', { className: 'text-[10px] text-(--ui-text-tertiary)',
-      children: selected ? `Selecionado: ${selected}` : 'Nenhum emoji atribuído.' }),
+      children: selected ? `Selected: ${selected}` : 'No emoji assigned.' }),
   ] });
 }
 
@@ -270,7 +270,7 @@ function StatusControl({ ctrl, ctx }) {
       ...theme,
       name: `prisma-profile-accent-${base}-${color.slice(1).toLowerCase()}`,
       label: 'Prisma',
-      description: `Fundo de ${color} para o perfil ${profileId(profile)}, baseado no tema ${theme.label}.`,
+      description: `Darkened ${color} background for profile ${profileId(profile)}, based on ${theme.label}.`,
       accentOf: undefined,
       colors: colors(theme.colors),
       darkColors: colors(theme.darkColors ?? theme.colors),
@@ -288,7 +288,7 @@ function StatusControl({ ctrl, ctx }) {
 
   return jsxs(Popover, { children: [
     jsx(PopoverTrigger, { asChild: true, children: jsxs('button', {
-      type: 'button', title: 'Prisma: perfil e emojis de sessões', 'aria-label': 'Abrir Prisma',
+      type: 'button', title: 'Prisma: profile colors and session emojis', 'aria-label': 'Open Prisma',
       className: 'inline-flex h-full items-center gap-1.5 px-2 text-[11px] text-(--ui-text-secondary) hover:bg-(--chrome-action-hover)',
       children: [
         jsx('span', { className: 'h-2.5 w-2.5 rounded-full border border-(--dt-border)', style: { backgroundColor: color ?? 'var(--ui-text-tertiary)' } }),
@@ -306,8 +306,8 @@ function RowControl({ ctrl, sessionId }) {
   return jsxs(Popover, { children: [
     jsx(PopoverTrigger, { asChild: true, children: jsx('button', {
       type: 'button',
-      title: selected ? `Prisma: mudar emoji ${selected}` : 'Prisma: definir emoji da sessão',
-      'aria-label': selected ? `Alterar emoji da sessão (${selected})` : 'Atribuir emoji à sessão',
+      title: selected ? `Prisma: change emoji ${selected}` : 'Prisma: assign a session emoji',
+      'aria-label': selected ? `Change session emoji (${selected})` : 'Assign session emoji',
       className: 'rounded px-0.5 text-[12px] opacity-70 hover:bg-(--chrome-action-hover) hover:opacity-100 focus-visible:opacity-100',
       onClick: (event) => event.stopPropagation(),
       onPointerDown: (event) => event.stopPropagation(),
@@ -327,7 +327,7 @@ function SettingsPage({ ctrl }) {
   useValue(ctrl.$prefs);
   return jsxs('div', { className: 'flex max-w-[440px] flex-col gap-4 p-4', style: { backgroundColor: ctrl.backgroundFor(profile) ?? undefined }, children: [
     jsx('h2', { className: 'text-base font-semibold', children: 'Prisma' }),
-    jsx('p', { className: 'text-xs text-(--ui-text-secondary)', children: 'Cores persistentes por perfil e emojis por sessão. Também disponível na barra de status e nas linhas das sessões.' }),
+    jsx('p', { className: 'text-xs text-(--ui-text-secondary)', children: 'Persistent profile colors and session emojis. Also available in the status bar and session rows.' }),
     jsx(ColorEditor, { ctrl }),
     jsx('hr', { className: 'border-(--dt-border)' }),
     jsx(EmojiEditor, { ctrl, sessionId }),
@@ -347,12 +347,12 @@ export default {
         render: ({ sessionId }) => jsx(RowControl, { ctrl, sessionId }),
       } },
       { id: 'reset-profile', area: PALETTE_AREA, data: {
-        id: 'prisma.reset-profile', label: 'Prisma: restaurar cor do perfil',
+        id: 'prisma.reset-profile', label: 'Prisma: restore profile color',
         keywords: ['prisma', 'accent', 'profile', 'color', 'reset'],
         run: () => ctrl.setProfileColor(null),
       } },
       { id: 'clear-session', area: PALETTE_AREA, data: {
-        id: 'prisma.clear-session', label: 'Prisma: remover emoji da sessão atual',
+        id: 'prisma.clear-session', label: 'Prisma: clear current session emoji',
         keywords: ['prisma', 'emoji', 'session', 'clear'],
         run: () => {
           const sessionId = host.state.focusedStoredSessionId.get();

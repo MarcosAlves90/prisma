@@ -116,7 +116,7 @@ test('accent-derived app-wide background theme', async () => {
   assert.equal(theme.data.colors.background, '#0A0611');
   assert.equal(theme.data.darkColors.background, '#0A0611');
   assert.equal(theme.data.label, 'Prisma', 'Prisma theme identity');
-  assert.match(theme.data.description, /#8250DF.*dev.*Midnight/);
+  assert.equal(theme.data.description, 'Darkened #8250DF background for profile dev, based on Midnight.');
   assert.deepEqual(app.previews, [{ name: theme.data.name, mode: 'dark' }]);
   assert.equal(app.committedThemeChanges, 0);
 });
@@ -124,7 +124,7 @@ test('accent-derived app-wide background theme', async () => {
 test('changing color through swatch persists only the active profile', async () => {
   const app = await boot(null);
   const tree = app.find('status').render();
-  const palette = app.nodes(tree, (n) => n.props['aria-label'] === 'Aplicar cor #8250DF');
+  const palette = app.nodes(tree, (n) => n.props['aria-label'] === 'Apply color #8250DF');
   assert.equal(palette.length, 1);
   palette[0].props.onClick();
   assert.equal(app.applied.at(-1), '#8250DF');
@@ -139,11 +139,11 @@ test('changing color through swatch persists only the active profile', async () 
 test('session preset gets stored by durable session id and renders on its row', async () => {
   const app = await boot(null);
   const row = () => app.find('session-emoji').data.render({ sessionId: 'durable-root-1' });
-  const applyButtons = app.nodes(row(), (n) => n.props['aria-label'] === 'Concluída');
+  const applyButtons = app.nodes(row(), (n) => n.props['aria-label'] === 'Done');
   assert.equal(applyButtons.length, 1);
   applyButtons[0].props.onClick();
   assert.equal(app.writes.at(-1).value.sessionEmojis['durable-root-1'], '✅');
-  const badge = app.nodes(row(), (n) => n.props['aria-label']?.includes('Alterar emoji da sessão'));
+  const badge = app.nodes(row(), (n) => n.props['aria-label']?.includes('Change session emoji'));
   assert.equal(badge.length, 1);
   assert.equal(badge[0].props.children, '✅');
   app.activeId.set('durable-root-1');
@@ -155,10 +155,10 @@ test('invalid color and non-emoji text in storage are discarded; teardown restor
   const app = await boot({ profileColors: { dev: 'javascript:alert(1)' }, sessionEmojis: { 's-1': 'DROP TABLE', 's-2': '🧑🏽‍💻' } });
   assert.equal(app.applied.at(-1), null);
   const row = app.find('session-emoji').data.render({ sessionId: 's-2' });
-  const badge = app.nodes(row, (n) => n.props['aria-label']?.includes('Alterar emoji da sessão'));
+  const badge = app.nodes(row, (n) => n.props['aria-label']?.includes('Change session emoji'));
   assert.equal(badge[0].props.children, '🧑🏽‍💻');
   const badRow = app.find('session-emoji').data.render({ sessionId: 's-1' });
-  const blankBadge = app.nodes(badRow, (n) => n.props['aria-label'] === 'Atribuir emoji à sessão');
+  const blankBadge = app.nodes(badRow, (n) => n.props['aria-label'] === 'Assign session emoji');
   assert.equal(blankBadge[0].props.children, '+');
   app.cleanups.forEach((fn) => fn());
   assert.equal(app.applied.at(-1), null);
@@ -169,15 +169,15 @@ test('invalid color and non-emoji text in storage are discarded; teardown restor
 test('persisted annotations and colors are restored by a new plugin instance', async () => {
   const first = await boot(null);
   const done = first.nodes(first.find('session-emoji').data.render({ sessionId: 'stable-123' }),
-    (n) => n.props['aria-label'] === 'Concluída');
+    (n) => n.props['aria-label'] === 'Done');
   done[0].props.onClick();
   const swatch = first.nodes(first.find('status').render(),
-    (n) => n.props['aria-label'] === 'Aplicar cor #196D31');
+    (n) => n.props['aria-label'] === 'Apply color #196D31');
   swatch[0].props.onClick();
   const lastSaved = first.writes.at(-1).value;
   const second = await boot(lastSaved);
   assert.equal(second.applied.at(-1), '#196D31');
   const badges = second.nodes(second.find('session-emoji').data.render({ sessionId: 'stable-123' }),
-    (n) => n.props['aria-label']?.includes('Alterar emoji da sessão'));
+    (n) => n.props['aria-label']?.includes('Change session emoji'));
   assert.equal(badges[0].props.children, '✅');
 });

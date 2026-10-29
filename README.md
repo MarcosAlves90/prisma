@@ -33,7 +33,7 @@ In Hermes Desktop, open **Capabilities → Plugins** and enable **Prisma** if it
 1. Use the **Prisma** control in the bottom-right status bar to select an accent for the currently active profile. On switching profiles, each saved color is restored.
 2. Click the **+** (or existing emoji) in a session row to assign/change its marker, or choose an emoji for the focused session in the Prisma control.
 3. Choose a preset: 📝 Planning; 🔍 Investigating; ⚙️ In progress; ⏸️ Paused; 🚧 Blocked; 🧪 Testing; ✅ Done; ❌ Failed; ⭐ Priority; 💡 Idea. Or type a custom emoji.
-4. **Restore** clears only the current profile's color. **Limpar** clears only the selected session's emoji.
+4. **Restore** clears only the current profile's color. **Clear** removes only the selected session's emoji.
 
 ## Technical notes and limitations
 

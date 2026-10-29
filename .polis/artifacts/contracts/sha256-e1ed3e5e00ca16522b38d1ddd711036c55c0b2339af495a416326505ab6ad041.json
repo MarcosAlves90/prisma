@@ -1,0 +1,171 @@
+{
+  "schema_version": 6,
+  "kind": "behavior_preserving",
+  "scope": {
+    "allowed_paths": [
+      "README.md",
+      "desktop/plugin.js",
+      "tests/plugin.test.mjs"
+    ]
+  },
+  "test_scope": {
+    "allowed_paths": [
+      "tests/plugin.test.mjs"
+    ]
+  },
+  "development_method": "strict_sdd_tdd_v2",
+  "specification": {
+    "objective": "Make all Prisma documentation and user-facing text English-only.",
+    "requirements": [
+      {
+        "id": "REQ-EN-1",
+        "statement": "Translate Prisma documentation and all user-visible UI labels, descriptions, placeholders, and command names into English."
+      },
+      {
+        "id": "REQ-EN-2",
+        "statement": "Update tests that assert translated UI text to expect the English labels."
+      }
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-EN-1",
+        "statement": "Prisma documentation and shipped UI text contain no Portuguese copy.",
+        "requirements": [
+          "REQ-EN-1"
+        ],
+        "proof": "regression"
+      },
+      {
+        "id": "AC-EN-2",
+        "statement": "The existing plugin test suite passes with English UI label expectations.",
+        "requirements": [
+          "REQ-EN-2"
+        ],
+        "proof": "regression"
+      }
+    ],
+    "invariants": [
+      {
+        "id": "INV-1",
+        "statement": "Translation does not change plugin behavior, storage keys or values, or SDK interactions."
+      },
+      {
+        "id": "INV-2",
+        "statement": "The README remains in English and preserves its existing technical scope."
+      }
+    ],
+    "forbidden_states": [
+      {
+        "id": "FORBID-1",
+        "statement": "Portuguese user-visible text remains in Prisma."
+      },
+      {
+        "id": "FORBID-2",
+        "statement": "Translation changes persisted data or plugin behavior."
+      }
+    ],
+    "inputs": [
+      {
+        "id": "INPUT-1",
+        "statement": "Existing Prisma README, plugin UI strings, and test expectations."
+      }
+    ],
+    "outputs": [
+      {
+        "id": "OUTPUT-1",
+        "statement": "English README and UI copy with passing updated tests."
+      }
+    ],
+    "failure_semantics": [
+      {
+        "id": "FAIL-1",
+        "statement": "Any failing test or remaining Portuguese copy blocks completion."
+      }
+    ]
+  },
+  "baseline_lock": {
+    "git_object_format": "sha1",
+    "base_commit": "5f76b1be12734d9944335a3aba0974a4b9742093",
+    "base_tree": "9c3b073f6c64755d19ff6de8bf552ff5fa05cc14",
+    "policy_sha256": "a86288cc77675ea8449846f20025260e4042ea3181f1779f1db21fdacf877d0b",
+    "specification_sha256": "4946026b02e7acb95a92795f959b99a97e7fc9d0a6d8fb65f2ffb38995aea12f"
+  },
+  "behavior": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "affected": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "regression": {
+    "mode": "green_green",
+    "command": {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "--test",
+        "tests/plugin.test.mjs"
+      ],
+      "cwd": ".",
+      "timeout_seconds": 1200,
+      "environment": {
+        "mode": "clean",
+        "pass": [
+          "PATH",
+          "HOME",
+          "TMPDIR",
+          "TMP",
+          "TEMP",
+          "SystemRoot",
+          "COMSPEC",
+          "PATHEXT",
+          "USERPROFILE",
+          "LOCALAPPDATA"
+        ]
+      }
+    }
+  }
+}
