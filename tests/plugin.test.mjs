@@ -18,7 +18,7 @@ function atom(initial) {
   };
 }
 
-async function boot(saved) {
+async function boot(saved, options = {}) {
   const profile = atom('dev');
   const activeId = atom('session-a');
   const applied = [];
@@ -30,23 +30,50 @@ async function boot(saved) {
   const cleanups = [];
   const previews = [];
   const clearedPreviews = [];
+  const sessionQueries = [];
+  const openedSessions = [];
   let committedThemeChanges = 0;
   let tagCounter = 0;
   let hookValues = [];
   let hookIndex = 0;
+  let effectIndex = 0;
+  const effectDeps = [];
+  const effectCleanups = [];
   const sdk = {
     atom,
     host: {
       state: { profile, focusedStoredSessionId: activeId },
       sessions: { setColor(sessionId, color) { sessionColors.push({ sessionId, color }); } },
+      profileRoutes: async () => options.profileRoutes ?? [],
+      listPersistedSessions: async (route, query) => {
+        sessionQueries.push({ route, query });
+        const page = options.sessionPages?.[route.connectionId] ?? { sessions: [], total: 0 };
+        if (page instanceof Error) throw page;
+        return page;
+      },
+      openSession: async (sessionId, openOptions) => { openedSessions.push({ sessionId, openOptions }); },
     },
     PALETTE_AREA: 'palette',
+    ROUTES_AREA: 'routes',
+    SIDEBAR_NAV_AREA: 'sidebar-nav',
     THEMES_AREA: 'themes',
     STATUSBAR_AREAS: { right: 'status-right' },
     SESSION_ROW_AREAS: { trailing: 'session-trailing' },
     Popover: function Popover({ children }) { return children; },
     PopoverTrigger: function PopoverTrigger({ children }) { return children; },
     PopoverContent: function PopoverContent({ children }) { return children; },
+    Button: function Button(props) { return { type: 'button', props }; },
+    Input: function Input(props) { return { type: 'input', props }; },
+    Badge: function Badge(props) { return { type: 'span', props }; },
+    Select: function Select({ children, value, onValueChange, ...props }) {
+      return { type: 'select', props: { ...props, value, onValueChange, children } };
+    },
+    SelectTrigger: function SelectTrigger({ children }) { return children; },
+    SelectContent: function SelectContent({ children }) { return children; },
+    SelectItem: function SelectItem({ children, value }) { return { type: 'option', props: { children, value } }; },
+    SelectValue: function SelectValue() { return null; },
+    EmptyState: function EmptyState(props) { return { type: 'empty-state', props }; },
+    ErrorState: function ErrorState(props) { return { type: 'error-state', props }; },
     ConfirmDialog: function ConfirmDialog(props) { return { type: 'confirm-dialog', props }; },
     setAccentOverride(value) { applied.push(value); },
     readableOn(background) { readableInputs.push(background); return background === '#EFFF00' ? '#000000' : '#FFFFFF'; },
@@ -54,7 +81,19 @@ async function boot(saved) {
     useValue(value) { return value.get(); },
   };
   const react = {
-    useEffect(effect) { const cleanup = effect(); if (cleanup) cleanups.push(cleanup); },
+    useEffect(effect, deps) {
+      const index = effectIndex++;
+      const previous = effectDeps[index];
+      const changed = deps === undefined || !previous || deps.length !== previous.length || deps.some((value, i) => !Object.is(value, previous[i]));
+      if (!changed) return;
+      effectCleanups[index]?.();
+      const cleanup = effect();
+      effectDeps[index] = deps;
+      if (typeof cleanup === 'function') {
+        effectCleanups[index] = cleanup;
+        cleanups.push(cleanup);
+      }
+    },
     useState(value) {
       const index = hookIndex++;
       if (!Object.hasOwn(hookValues, index)) hookValues[index] = typeof value === 'function' ? value() : value;
@@ -84,7 +123,7 @@ async function boot(saved) {
   plugin.register(ctx);
   const find = (id) => contributions.find((item) => item.id === id);
   function nodes(tree, predicate, found = [], nested = false) {
-    if (!nested) hookIndex = 0;
+    if (!nested) { hookIndex = 0; effectIndex = 0; }
     if (tree == null) return found;
     if (Array.isArray(tree)) { for (const item of tree) nodes(item, predicate, found, true); return found; }
     if (typeof tree !== 'object' || !('type' in tree)) return found;
@@ -93,7 +132,7 @@ async function boot(saved) {
     nodes(tree.props.children, predicate, found, true);
     return found;
   }
-  return { sdk, plugin, profile, activeId, applied, sessionColors, readableInputs, writes, contributions, settings, cleanups, previews, clearedPreviews, get committedThemeChanges() { return committedThemeChanges; }, find, nodes };
+  return { sdk, plugin, profile, activeId, applied, sessionColors, readableInputs, writes, contributions, settings, cleanups, previews, clearedPreviews, sessionQueries, openedSessions, get committedThemeChanges() { return committedThemeChanges; }, find, nodes };
 }
 
 test('Prisma supports creating and applying named session tags', async () => {
@@ -127,7 +166,7 @@ test('Prisma supports creating and applying named session tags', async () => {
 test('registers native UI surfaces and applies no override by default', async () => {
   const app = await boot(null);
   assert.equal(app.plugin.id, 'prisma');
-  assert.deepEqual(app.contributions.map(({ id }) => id), ['status', 'session-tag', 'reset-profile', 'clear-session']);
+  assert.deepEqual(app.contributions.map(({ id }) => id), ['status', 'session-tag', 'reset-profile', 'clear-session', 'tagged-sessions-page', 'tagged-sessions-nav']);
   assert.equal(app.settings.length, 1);
   assert.equal(app.applied.at(-1), null);
 });
@@ -313,4 +352,106 @@ test('delete confirmation clears all tag assignments and overrides', async () =>
     { sessionId: 'session-1', color: null },
     { sessionId: 'session-2', color: null },
   ]);
+});
+
+const localRoute = { connectionId: 'local', mode: 'local', profile: 'dev', targetProfile: 'dev' };
+const remoteRoute = { connectionId: 'remote-1', mode: 'remote', profile: 'writer', targetProfile: 'writer' };
+
+function taggedPageNodes(app) {
+  const page = app.find('tagged-sessions-page');
+  assert.ok(page, 'Prisma registers a tagged sessions page');
+  return app.nodes(page.render(), () => true);
+}
+
+async function loadTaggedPage(app) {
+  taggedPageNodes(app);
+  await new Promise((resolve) => setImmediate(resolve));
+  return taggedPageNodes(app);
+}
+
+test('sidebar panel lists tagged sessions across profiles', async () => {
+  const app = await boot({
+    tags: {
+      bug: { name: 'Bug', emoji: '🐛', color: '#AA3344' },
+      done: { name: 'Done', emoji: '✅', color: '#196D31' },
+    },
+    sessionTags: {
+      'local-session': 'bug',
+      'remote-session': 'done',
+      'missing-session': 'bug',
+      'offline-session': 'done',
+    },
+    sessionEmojis: {},
+  }, {
+    profileRoutes: [localRoute, remoteRoute, { connectionId: 'offline', mode: 'remote', profile: 'offline', targetProfile: 'offline' }],
+    sessionPages: {
+      local: { sessions: [{ id: 'local-session', title: 'Local issue', preview: 'Login failure' }], total: 601 },
+      'remote-1': { sessions: [{ id: 'remote-session', title: 'Remote idea', preview: 'Design review' }], total: 1 },
+      offline: new Error('gateway unavailable'),
+    },
+  });
+  const navigation = app.find('tagged-sessions-nav');
+  assert.ok(navigation, 'Prisma registers sidebar navigation for tagged sessions');
+  assert.equal(navigation.area, 'sidebar-nav');
+  assert.equal(navigation.data.path, '/prisma/tagged-sessions');
+  assert.equal(navigation.data.label, 'Tagged sessions');
+  assert.equal(app.find('tagged-sessions-page').area, 'routes');
+
+  const nodes = await loadTaggedPage(app);
+  assert.equal(app.sessionQueries.length, 3, 'every registered profile route is queried');
+  assert.equal(app.sessionQueries.every(({ query }) => query.limit === 500), true);
+  assert.deepEqual(app.sessionQueries.map(({ query }) => query.profile).sort(), ['dev', 'offline', 'writer']);
+  assert.equal(nodes.some((node) => node.props['aria-label'] === 'Open tagged session Local issue'), true);
+  assert.equal(nodes.some((node) => node.props['aria-label'] === 'Open tagged session Remote idea'), true);
+  assert.equal(nodes.some((node) => node.props['aria-label'] === 'Tagged session unavailable: missing-session'), true);
+  assert.equal(nodes.some((node) => node.props['aria-label'] === 'Tagged session unavailable: offline-session'), true);
+  assert.equal(nodes.some((node) => node.props.role === 'alert'), true, 'a failed profile remains visible');
+  assert.equal(nodes.some((node) => String(node.props.children).includes('incomplete')), true, 'large profile lists disclose partial details');
+
+  const openLocal = nodes.find((node) => node.props['aria-label'] === 'Open tagged session Local issue');
+  await openLocal.props.onClick();
+  assert.equal(app.openedSessions.at(-1).sessionId, 'local-session');
+  assert.equal(app.openedSessions.at(-1).openOptions.route.connectionId, 'local');
+  assert.equal(app.openedSessions.at(-1).openOptions.route.targetProfile, 'dev');
+});
+
+test('tagged sessions can be filtered by profile and tag, searched, and opened', async () => {
+  const app = await boot({
+    tags: {
+      bug: { name: 'Bug', emoji: '🐛', color: '#AA3344' },
+      done: { name: 'Done', emoji: '✅', color: '#196D31' },
+    },
+    sessionTags: { 'local-session': 'bug', 'remote-session': 'done' },
+    sessionEmojis: {},
+  }, {
+    profileRoutes: [localRoute, remoteRoute],
+    sessionPages: {
+      local: { sessions: [{ id: 'local-session', title: 'Local issue', preview: 'Login failure' }], total: 1 },
+      'remote-1': { sessions: [{ id: 'remote-session', title: 'Remote idea', preview: 'Design review' }], total: 1 },
+    },
+  });
+  let nodes = await loadTaggedPage(app);
+  const profile = nodes.find((node) => node.type === 'select' && node.props['aria-label'] === 'Profile filter');
+  const tag = nodes.find((node) => node.type === 'select' && node.props['aria-label'] === 'Tag filter');
+  const search = nodes.find((node) => node.type === 'input' && node.props['aria-label'] === 'Search tagged sessions');
+  const remoteOption = nodes.find((node) => node.type === 'option' && node.props.children === 'writer');
+  const doneOption = nodes.find((node) => node.type === 'option' && node.props.children === 'Done');
+  assert.ok(profile && tag && search && remoteOption && doneOption);
+
+  profile.props.onValueChange(remoteOption.props.value);
+  tag.props.onValueChange('all');
+  search.props.onChange({ target: { value: 'Remote' } });
+  nodes = taggedPageNodes(app);
+  assert.equal(nodes.some((node) => node.props['aria-label'] === 'Open tagged session Remote idea'), true);
+  assert.equal(nodes.some((node) => node.props['aria-label'] === 'Open tagged session Local issue'), false);
+
+  const currentTag = nodes.find((node) => node.type === 'select' && node.props['aria-label'] === 'Tag filter');
+  currentTag.props.onValueChange(doneOption.props.value);
+  nodes = taggedPageNodes(app);
+  assert.equal(nodes.some((node) => node.props['aria-label'] === 'Open tagged session Remote idea'), true);
+
+  const currentSearch = nodes.find((node) => node.type === 'input' && node.props['aria-label'] === 'Search tagged sessions');
+  currentSearch.props.onChange({ target: { value: 'no-match' } });
+  nodes = taggedPageNodes(app);
+  assert.equal(nodes.some((node) => node.type === 'empty-state' && node.props.title === 'No matching sessions'), true);
 });

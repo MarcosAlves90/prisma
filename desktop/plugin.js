@@ -5,14 +5,26 @@
  */
 import {
   atom,
+  Badge,
+  Button,
+  EmptyState,
+  ErrorState,
   host,
+  Input,
   PALETTE_AREA,
   Popover,
   PopoverContent,
   PopoverTrigger,
   ConfirmDialog,
   readableOn,
+  ROUTES_AREA,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   SESSION_ROW_AREAS,
+  SIDEBAR_NAV_AREA,
   setAccentOverride,
   STATUSBAR_AREAS,
   THEMES_AREA,
@@ -465,6 +477,184 @@ function SettingsPage({ ctrl }) {
   ] });
 }
 
+const TAGGED_SESSIONS_PATH = '/prisma/tagged-sessions';
+const TAGGED_SESSION_LIMIT = 500;
+
+function profileRouteKey(route) {
+  return JSON.stringify([route.connectionId, route.profile, route.targetProfile]);
+}
+
+function profileRouteLabel(route, routes) {
+  const name = route.targetProfile || route.profile || 'default';
+  const duplicates = routes.filter((candidate) => candidate.targetProfile === route.targetProfile).length > 1;
+  if (!duplicates) return name;
+  const source = route.mode === 'local' ? 'This device' : `Remote ${String(route.connectionId).slice(0, 8)}`;
+  return `${name} · ${source}`;
+}
+
+function taggedAssignments(prefs) {
+  return Object.entries(prefs.sessionTags)
+    .map(([sessionId, tagId]) => ({ sessionId, tagId, tag: prefs.tags[tagId] }))
+    .filter((row) => row.tag);
+}
+
+async function loadTaggedSessions(prefs) {
+  if (!Object.keys(prefs.sessionTags).length) {
+    return { routes: [], rows: [], unavailable: [], errors: [], incomplete: false };
+  }
+
+  const routes = await host.profileRoutes();
+  if (!Array.isArray(routes)) throw new Error('Profile routes unavailable');
+  const results = await Promise.all(routes.map(async (route) => {
+    try {
+      // shortcut: the SDK exposes only the first 500 persisted sessions; use cursor pagination when available.
+      const page = await host.listPersistedSessions(route, { profile: route.targetProfile, limit: TAGGED_SESSION_LIMIT });
+      const sessions = Array.isArray(page?.sessions) ? page.sessions : [];
+      return { route, sessions, total: Number.isFinite(page?.total) ? page.total : sessions.length, failed: false };
+    } catch {
+      return { route, sessions: [], total: null, failed: true };
+    }
+  }));
+
+  const knownIds = new Set();
+  const rows = [];
+  const errors = [];
+  let incomplete = false;
+  for (const result of results) {
+    if (result.failed) errors.push(result.route);
+    if (!result.failed && result.total > result.sessions.length) incomplete = true;
+    for (const session of result.sessions) {
+      const ids = [session?._lineage_root_id, session?.id, ...(Array.isArray(session?._lineage_ids) ? session._lineage_ids : [])]
+        .filter((id) => typeof id === 'string' && id.length);
+      for (const id of ids) knownIds.add(id);
+      const assignmentId = ids.find((id) => Object.hasOwn(prefs.sessionTags, id));
+      if (!assignmentId) continue;
+      const tagId = prefs.sessionTags[assignmentId];
+      const tag = prefs.tags[tagId];
+      if (tag) rows.push({ sessionId: ids[0], assignmentId, session, tagId, tag, route: result.route });
+    }
+  }
+
+  const unavailable = taggedAssignments(prefs).filter((row) => !knownIds.has(row.sessionId));
+  return { routes, rows, unavailable, errors, incomplete };
+}
+
+function TaggedSessionsPage({ ctrl }) {
+  const prefs = useValue(ctrl.$prefs);
+  const { theme } = useTheme();
+  const [data, setData] = useState({ loading: true, error: false, routes: [], rows: [], unavailable: [], errors: [], incomplete: false });
+  const [profileFilter, setProfileFilter] = useState('all');
+  const [tagFilter, setTagFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [refresh, setRefresh] = useState(0);
+  const [openError, setOpenError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    setData((current) => ({ ...current, loading: true, error: false }));
+    loadTaggedSessions(prefs).then((result) => {
+      if (active) setData({ ...result, loading: false, error: false });
+    }).catch(() => {
+      if (active) setData({ loading: false, error: true, routes: [], rows: [], unavailable: taggedAssignments(prefs), errors: [], incomplete: false });
+    });
+    return () => { active = false; };
+  }, [refresh, prefs.sessionTags, prefs.tags]);
+
+  const tags = Object.entries(prefs.tags).sort((a, b) => a[1].name.localeCompare(b[1].name));
+  const query = search.trim().toLowerCase();
+  const matches = (row, label = '') => {
+    if (tagFilter !== 'all' && row.tagId !== tagFilter) return false;
+    if (!query) return true;
+    const session = row.session ?? {};
+    return [session.title, session.preview, row.sessionId, row.tag.name, row.tag.emoji, label]
+      .some((value) => String(value ?? '').toLowerCase().includes(query));
+  };
+  const visibleRows = data.rows.filter((row) => {
+    const label = profileRouteLabel(row.route, data.routes);
+    return (profileFilter === 'all' || profileFilter === profileRouteKey(row.route)) && matches(row, label);
+  });
+  const visibleUnavailable = profileFilter === 'all' ? data.unavailable.filter((row) => matches(row)) : [];
+  const groups = [];
+  for (const row of visibleRows) {
+    const key = profileRouteKey(row.route);
+    let group = groups.find((item) => item.key === key);
+    if (!group) {
+      group = { key, label: profileRouteLabel(row.route, data.routes), rows: [] };
+      groups.push(group);
+    }
+    group.rows.push(row);
+  }
+  const count = visibleRows.length + visibleUnavailable.length;
+  const tagBadge = (tag) => jsx(Badge, {
+    className: 'shrink-0 border-0 px-1.5 py-0.5 text-xs font-medium',
+    style: { backgroundColor: `${tag.color}${TAG_FILL_ALPHA.toString(16).padStart(2, '0')}`, color: readableOn(compositeColor(tag.color, theme.colors.background)) },
+    children: `${tag.emoji} ${tag.name}`,
+  });
+
+  return jsxs('main', { className: 'mx-auto flex h-full min-h-0 w-full max-w-4xl flex-col gap-4 overflow-y-auto p-5', children: [
+    jsxs('header', { className: 'flex items-start justify-between gap-3', children: [
+      jsxs('div', { children: [
+        jsx('h1', { className: 'text-lg font-semibold', children: 'Tagged sessions' }),
+        jsx('p', { className: 'mt-1 text-sm text-(--ui-text-secondary)', children: 'Review Prisma-tagged sessions across profiles.' }),
+      ] }),
+      jsx(Badge, { variant: 'outline', 'aria-live': 'polite', children: data.loading ? '…' : `${count} ${count === 1 ? 'session' : 'sessions'}` }),
+    ] }),
+    jsxs('div', { className: 'grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_2fr_auto]', children: [
+      jsx(Select, { value: profileFilter, onValueChange: setProfileFilter, 'aria-label': 'Profile filter', children: [
+        jsx(SelectTrigger, { 'aria-label': 'Profile filter', children: jsx(SelectValue, { placeholder: 'All profiles' }) }),
+        jsx(SelectContent, { children: [
+          jsx(SelectItem, { value: 'all', children: 'All profiles' }),
+          ...data.routes.map((route) => jsx(SelectItem, { key: profileRouteKey(route), value: profileRouteKey(route), children: profileRouteLabel(route, data.routes) })),
+        ] }),
+      ] }),
+      jsx(Select, { value: tagFilter, onValueChange: setTagFilter, 'aria-label': 'Tag filter', children: [
+        jsx(SelectTrigger, { 'aria-label': 'Tag filter', children: jsx(SelectValue, { placeholder: 'All tags' }) }),
+        jsx(SelectContent, { children: [
+          jsx(SelectItem, { value: 'all', children: 'All tags' }),
+          ...tags.map(([id, tag]) => jsx(SelectItem, { key: id, value: id, children: tag.name })),
+        ] }),
+      ] }),
+      jsx(Input, { type: 'search', value: search, placeholder: 'Search title, preview, or session ID', 'aria-label': 'Search tagged sessions', onChange: (event) => setSearch(event.target.value) }),
+      jsx(Button, { type: 'button', variant: 'outline', onClick: () => setRefresh((value) => value + 1), 'aria-label': 'Refresh tagged sessions', children: 'Refresh' }),
+    ] }),
+    data.loading ? jsx('p', { role: 'status', 'aria-live': 'polite', className: 'text-sm text-(--ui-text-secondary)', children: 'Loading tagged sessions…' }) : null,
+    data.error ? jsx(ErrorState, { title: 'Unable to load profile routes', description: 'Check the connection and retry.', children: jsx(Button, { type: 'button', onClick: () => setRefresh((value) => value + 1), children: 'Retry' }) }) : null,
+    ...data.errors.map((route) => jsx('div', { role: 'alert', className: 'rounded-lg border border-(--dt-border) px-3 py-2 text-sm text-(--ui-text-secondary)', children: `Could not load ${profileRouteLabel(route, data.routes)}. Any matching assignment remains visible by session ID.` }, profileRouteKey(route))),
+    data.incomplete ? jsx('p', { role: 'status', className: 'text-xs text-(--ui-text-secondary)', children: 'Some profile lists are incomplete (500-session SDK limit); tagged assignments outside the returned page remain visible by ID.' }) : null,
+    openError ? jsx('p', { role: 'alert', className: 'text-sm text-destructive', children: openError }) : null,
+    profileFilter !== 'all' && data.unavailable.length ? jsx('p', { className: 'text-xs text-(--ui-text-secondary)', children: 'Assignments without profile details appear when All profiles is selected.' }) : null,
+    data.loading ? null : count ? jsxs('div', { className: 'flex flex-col gap-4', children: [
+      ...groups.map((group) => jsxs('section', { 'aria-label': `${group.label} tagged sessions`, className: 'flex flex-col gap-2', children: [
+        jsxs('h2', { className: 'flex items-center gap-2 text-sm font-medium', children: [group.label, jsx('span', { className: 'text-xs text-(--ui-text-tertiary)', children: group.rows.length })] }),
+        ...group.rows.map((row) => {
+          const title = typeof row.session.title === 'string' && row.session.title.trim() ? row.session.title : 'Untitled session';
+          return jsxs('div', { className: 'flex items-center justify-between gap-3 rounded-lg border border-(--dt-border) px-3 py-2 hover:bg-(--chrome-action-hover)', children: [
+            jsxs('div', { className: 'min-w-0', children: [
+              jsx('div', { className: 'truncate text-sm font-medium', children: title }),
+              row.session.preview ? jsx('p', { className: 'mt-0.5 line-clamp-1 text-xs text-(--ui-text-secondary)', children: row.session.preview }) : null,
+            ] }),
+            jsxs('div', { className: 'flex shrink-0 items-center gap-2', children: [
+              tagBadge(row.tag),
+              jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', 'aria-label': `Open tagged session ${title}`, onClick: () => host.openSession(row.sessionId, { route: row.route }).catch(() => setOpenError('Unable to open this session. Refresh and try again.')), children: 'Open' }),
+            ] }),
+          ] }, `${profileRouteKey(row.route)}:${row.sessionId}`);
+        }),
+      ] }, group.key)),
+      visibleUnavailable.length ? jsxs('section', { 'aria-label': 'Session details unavailable', className: 'flex flex-col gap-2', children: [
+        jsx('h2', { className: 'text-sm font-medium', children: 'Session details unavailable' }),
+        jsx('p', { className: 'text-xs text-(--ui-text-secondary)', children: 'These tag assignments are preserved, but their sessions are outside the available profile results.' }),
+        ...visibleUnavailable.map((row) => jsxs('div', { role: 'group', 'aria-label': `Tagged session unavailable: ${row.sessionId}`, className: 'flex items-center justify-between gap-3 rounded-lg border border-(--dt-border) px-3 py-2', children: [
+          jsx('code', { className: 'truncate text-xs', children: row.sessionId }), tagBadge(row.tag),
+        ] }, row.sessionId)),
+      ] }) : null,
+    ] }) : jsx(EmptyState, {
+      title: Object.keys(prefs.sessionTags).length ? 'No matching sessions' : 'No tagged sessions yet',
+      description: Object.keys(prefs.sessionTags).length ? 'Try a different profile, tag, or search term.' : 'Assign a Prisma tag from a session row to start.',
+      className: 'min-h-48',
+    }),
+  ] });
+}
+
 export default {
   id: 'prisma',
   name: 'Prisma',
@@ -489,6 +679,11 @@ export default {
           const sessionId = host.state.focusedStoredSessionId.get();
           if (sessionId) ctrl.setSessionTag(sessionId, null);
         },
+      } },
+      { id: 'tagged-sessions-page', area: ROUTES_AREA, data: { path: TAGGED_SESSIONS_PATH },
+        render: () => jsx(TaggedSessionsPage, { ctrl }) },
+      { id: 'tagged-sessions-nav', area: SIDEBAR_NAV_AREA, order: 65, data: {
+        path: TAGGED_SESSIONS_PATH, label: 'Tagged sessions', codicon: 'tag',
       } },
     ]);
     if (ctx.registerSettingsPage) {

@@ -10,6 +10,7 @@ Prisma adds **persistent accent colors per profile** and **custom colored emoji 
 - Created tags remain listed in Prisma controls without an open session; assigning a tag requires a selected session.
 - Assign or clear a tag from the session-row popover, or manage tags and the focused session from the Prisma status-bar popover or settings page.
 - Settings page under **Settings → Plugins → Prisma**, plus two commands in the command palette.
+- A **Tagged sessions** page in the sidebar lists assigned sessions across registered profiles, grouped by profile, with profile/tag filters, text search, result counts, refresh, and direct open actions. Assignments without returned session details remain visible by ID.
 - Session annotations are keyed by **stored/durable session ID**, so they survive session ID rotations caused by context compression.
 
 ## Install (macOS/Linux)
@@ -35,11 +36,13 @@ In Hermes Desktop, open **Capabilities → Plugins** and enable **Prisma** if it
 2. Open Prisma from the status bar or settings page and create a tag by entering its name, emoji, and color.
 3. Click **+** in a session row and select a tag. One tag is assigned per session; selecting another replaces it. Use **Clear tag** to remove it.
 4. **Restore** clears only the current profile's color. **Clear tag** removes only the focused session's tag.
+5. Select **Tagged sessions** in the sidebar to review tags across profiles. Filter by profile or tag, search the session title/preview/ID, or open a listed session.
 
 ## Technical notes and limitations
 
 - **Hermes Desktop only.** It does not change classic terminal, Discord, Telegram, or web dashboard session lists.
-- Requires a Hermes Desktop build with the SDK's `SESSION_ROW_AREAS`, `host.state.focusedStoredSessionId`, `host.sessions.setColor`, `ctx.storage`, and `setAccentOverride` APIs. These are described in the current [Desktop Plugin SDK](https://hermes-agent.nousresearch.com/docs/developer-guide/desktop-plugin-sdk). Compatibility with an installed Hermes version must be checked in the actual app.
+- Requires a Hermes Desktop build with the SDK's `SESSION_ROW_AREAS`, `ROUTES_AREA`, `SIDEBAR_NAV_AREA`, `host.state.focusedStoredSessionId`, `host.sessions.setColor`, `host.profileRoutes`, `host.listPersistedSessions`, `host.openSession`, `ctx.storage`, and `setAccentOverride` APIs. These are described in the current [Desktop Plugin SDK](https://hermes-agent.nousresearch.com/docs/developer-guide/desktop-plugin-sdk). Compatibility with an installed Hermes version must be checked in the actual app.
+- The SDK returns at most 500 persisted sessions per profile. When a tag assignment has no matching returned session details, Prisma keeps it visible by session ID; the assigned profile and title cannot be inferred until the session appears in the SDK results.
 - The public plugin API cannot color the full session-row background. Prisma colors the emoji badge and the SDK's session color indicator instead.
 - Applying a tag uses the SDK's per-session color override. It replaces any existing manual color override; clearing the tag returns the session to its inherited project color.
 - The accent override is a **single app-wide value** owned by the SDK. Do not enable Prisma alongside **Accent Picker** or another plugin writing `setAccentOverride`: concurrent writes may overwrite each other.

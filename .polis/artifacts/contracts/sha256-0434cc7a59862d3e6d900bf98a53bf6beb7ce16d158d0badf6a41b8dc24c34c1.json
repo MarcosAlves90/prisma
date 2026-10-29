@@ -1,0 +1,193 @@
+{
+  "schema_version": 6,
+  "kind": "feature",
+  "scope": {
+    "allowed_paths": [
+      "desktop/plugin.js",
+      "tests/plugin.test.mjs",
+      "README.md"
+    ]
+  },
+  "test_scope": {
+    "allowed_paths": [
+      "tests/plugin.test.mjs"
+    ]
+  },
+  "development_method": "strict_sdd_tdd_v2",
+  "specification": {
+    "objective": "Add a sidebar panel for reviewing every Prisma-tagged session across registered profiles, with focused discovery and navigation.",
+    "requirements": [
+      {
+        "id": "REQ-TAG-12",
+        "statement": "A Tagged sessions page is reachable from the Hermes Desktop sidebar and lists only sessions assigned a configured Prisma tag across every registered profile route, including assignments whose session details are not returned by the profile session listing."
+      },
+      {
+        "id": "REQ-TAG-13",
+        "statement": "The page supports filtering by profile and tag, searching session title/preview/ID, and opening a resolved session through its owning profile route."
+      }
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-TAG-9",
+        "statement": "The sidebar entry opens the Tagged sessions route; the page queries every profile route rather than only the active profile, shows each assigned tagged session, and retains unmatched assignments in an explicit unavailable-details group.",
+        "requirements": [
+          "REQ-TAG-12"
+        ],
+        "proof": "regression"
+      },
+      {
+        "id": "AC-TAG-10",
+        "statement": "Profile, tag, and text filters narrow the displayed rows; opening a resolved row passes its session ID and exact owning route to the SDK, while unavailable rows cannot be opened.",
+        "requirements": [
+          "REQ-TAG-13"
+        ],
+        "proof": "regression"
+      },
+      {
+        "id": "AC-TAG-11",
+        "statement": "The page provides clear loading, error, empty, result-count, and partial-list feedback using accessible controls and existing Hermes Desktop UI components.",
+        "requirements": [
+          "REQ-TAG-12",
+          "REQ-TAG-13"
+        ],
+        "proof": "regression"
+      }
+    ],
+    "invariants": [
+      {
+        "id": "INV-TAG-8",
+        "statement": "Existing tag definitions, session assignments, color overrides, profile accent behavior, and session-row decorations remain unchanged."
+      },
+      {
+        "id": "INV-TAG-9",
+        "statement": "Reading the page does not mutate sessions, tags, profile settings, or active-profile scope."
+      }
+    ],
+    "forbidden_states": [
+      {
+        "id": "FORBID-TAG-11",
+        "statement": "The panel silently limits its results to the active profile or hides a persisted tagged-session assignment that lacks matching session details."
+      },
+      {
+        "id": "FORBID-TAG-12",
+        "statement": "Opening a listed session drops its owning profile route or the page displays untagged sessions as tagged."
+      }
+    ],
+    "inputs": [
+      {
+        "id": "INPUT-TAG-5",
+        "statement": "Prisma tag definitions and session-ID-to-tag-ID assignments from plugin-scoped storage."
+      },
+      {
+        "id": "INPUT-TAG-6",
+        "statement": "Registered profile routes and persisted session-list pages provided by the Hermes Desktop SDK."
+      },
+      {
+        "id": "INPUT-TAG-7",
+        "statement": "User profile, tag, and text filter selections."
+      }
+    ],
+    "outputs": [
+      {
+        "id": "OUTPUT-TAG-4",
+        "statement": "A sidebar-accessible, grouped and filterable list of tagged sessions, with explicit fallback entries for unavailable session details."
+      }
+    ],
+    "failure_semantics": [
+      {
+        "id": "FAIL-TAG-5",
+        "statement": "A profile-listing failure is surfaced without discarding successful profile results; affected stored assignments remain visible by ID, and a profile inventory failure provides a retryable error state."
+      }
+    ]
+  },
+  "baseline_lock": {
+    "git_object_format": "sha1",
+    "base_commit": "d4bd30dfef7ecbc26e59e5b8b9f40fa26e8c84d9",
+    "base_tree": "b78b8eed18186911e09d599170b982b4a98b392f",
+    "policy_sha256": "e79833ebc3a6aa4d452d938a53633435aac6943865e9798f6506fe2dcf650378",
+    "specification_sha256": "63df70f32e573065283f4f4a8c3a9f03267a81af006e4071b57cbc32e2de50a3"
+  },
+  "behavior": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "affected": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "regression": {
+    "mode": "red_green",
+    "command": {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "--test",
+        "tests/plugin.test.mjs"
+      ],
+      "cwd": ".",
+      "timeout_seconds": 1200,
+      "environment": {
+        "mode": "clean",
+        "pass": [
+          "PATH",
+          "HOME",
+          "TMPDIR",
+          "TMP",
+          "TEMP",
+          "SystemRoot",
+          "COMSPEC",
+          "PATHEXT",
+          "USERPROFILE",
+          "LOCALAPPDATA"
+        ]
+      }
+    },
+    "baseline_exit_code": 1,
+    "baseline_output_contains": [
+      "sidebar panel lists tagged sessions across profiles",
+      "tagged sessions can be filtered by profile and tag, searched, and opened"
+    ]
+  }
+}
