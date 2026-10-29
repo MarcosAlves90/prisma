@@ -6,7 +6,7 @@ Prisma adds **persistent accent colors per profile** and **custom colored emoji 
 
 - Profile accent color follows the current Hermes Desktop profile. It is persisted in plugin-scoped storage and restored on profile switch or restart. The app-wide and sidebar backgrounds use a much darker shade of that accent via a temporary theme preview labeled **Prisma**, with the profile, accent, and base theme in its description; clearing the color or disabling Prisma restores the user's committed theme.
 - Color input (native color picker + hexadecimal entry + ten preset swatches) and **Restore** action.
-- Create a tag with a name, one emoji, and a color, then assign one tag per session. The tag picker uses a translucent color fill, borderless spacing, and contrast-aware names. The session row shows the emoji on a semi-transparent badge derived from the tag color, and the session color indicator uses the full tag color.
+- Create a tag with a name, one emoji, and a color, then assign one tag per session. The tag picker uses a translucent color fill, borderless spacing, and contrast-aware names. The session row shows the emoji on a semi-transparent badge derived from the tag color, and the session color indicator uses the full tag color. Existing tags can be edited in place or deleted after confirmation; deletion clears their session assignments and color overrides.
 - Created tags remain listed in Prisma controls without an open session; assigning a tag requires a selected session.
 - Assign or clear a tag from the session-row popover, or manage tags and the focused session from the Prisma status-bar popover or settings page.
 - Settings page under **Settings → Plugins → Prisma**, plus two commands in the command palette.

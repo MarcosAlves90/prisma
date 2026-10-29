@@ -10,6 +10,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  ConfirmDialog,
   readableOn,
   SESSION_ROW_AREAS,
   setAccentOverride,
@@ -143,6 +144,37 @@ function createController(ctx) {
     return id;
   }
 
+  function editTag(id, name, emoji, color) {
+    const normalizedName = typeof name === 'string' ? name.trim() : '';
+    const normalizedEmoji = normEmoji(emoji);
+    const normalizedColor = normColor(color);
+    if (!Object.hasOwn(prefs.tags, id) || !normalizedName || normalizedName.length > 40 || !normalizedEmoji || !normalizedColor) return false;
+    const tags = { ...prefs.tags };
+    Object.defineProperty(tags, id, { value: Object.assign(new Object(), { name: normalizedName, emoji: normalizedEmoji, color: normalizedColor }), enumerable: true, configurable: true, writable: true });
+    persist({ ...prefs, tags });
+    for (const [sessionId, tagId] of Object.entries(prefs.sessionTags)) {
+      if (tagId === id) host.sessions.setColor(sessionId, normalizedColor);
+    }
+    return true;
+  }
+
+  function deleteTag(id) {
+    if (!Object.hasOwn(prefs.tags, id)) return false;
+    const tags = { ...prefs.tags };
+    const sessionTags = { ...prefs.sessionTags };
+    const affectedSessions = [];
+    delete tags[id];
+    for (const [sessionId, tagId] of Object.entries(sessionTags)) {
+      if (tagId === id) {
+        delete sessionTags[sessionId];
+        affectedSessions.push(sessionId);
+      }
+    }
+    persist({ ...prefs, tags, sessionTags });
+    for (const sessionId of affectedSessions) host.sessions.setColor(sessionId, null);
+    return true;
+  }
+
   function setSessionTag(sessionId, tagId) {
     if (typeof sessionId !== 'string' || !sessionId) return false;
     if (tagId !== null && (typeof tagId !== 'string' || !Object.hasOwn(prefs.tags, tagId))) return false;
@@ -170,7 +202,7 @@ function createController(ctx) {
     setAccentOverride(null);
     for (const sessionId of Object.keys(prefs.sessionTags)) host.sessions.setColor(sessionId, null);
   });
-  return { $prefs, themeState, accentFor, backgroundFor, setProfileColor, createTag, setSessionTag };
+  return { $prefs, themeState, accentFor, backgroundFor, setProfileColor, createTag, editTag, deleteTag, setSessionTag };
 }
 
 const headingClass = 'mb-1.5 text-[11px] font-semibold text-(--ui-text-secondary)';
@@ -227,7 +259,23 @@ function TagEditor({ ctrl, sessionId, surfaceColor, showCreate = true }) {
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('');
   const [color, setColor] = useState(FALLBACK_COLOR);
+  const [editingTagId, setEditingTagId] = useState(null);
+  const [deleteCandidate, setDeleteCandidate] = useState(null);
   const tagEntries = Object.entries(prefs.tags);
+
+  function clearForm() {
+    setEditingTagId(null);
+    setName('');
+    setEmoji('');
+    setColor(FALLBACK_COLOR);
+  }
+
+  function saveTag() {
+    const saved = editingTagId
+      ? ctrl.editTag(editingTagId, name, emoji, color)
+      : ctrl.createTag(name, emoji, color);
+    if (saved) clearForm();
+  }
 
   return jsxs('section', { className: 'flex flex-col gap-2', children: [
     jsx('h3', { className: headingClass, children: 'Session tags' }),
@@ -235,15 +283,23 @@ function TagEditor({ ctrl, sessionId, surfaceColor, showCreate = true }) {
       !sessionId ? jsx('p', { className: 'text-[11px] text-(--ui-text-tertiary)', children: 'Open a session to assign a tag.' }) : null,
       jsx('div', { className: 'flex max-h-36 flex-col gap-1 overflow-y-auto', children: tagEntries.map(([id, tag]) => {
         const selected = selectedTagId === id;
-        return jsx('button', {
-          key: id, type: 'button', disabled: !sessionId,
-          title: sessionId ? `Assign ${tag.name} (${tag.emoji})` : `${tag.name} (open a session to assign)`,
-          'aria-label': sessionId ? `Assign ${tag.name} tag to session` : `${tag.name} tag`, 'aria-pressed': selected,
-          className: 'flex items-center gap-2 rounded px-2 py-1 text-left text-[11px] hover:opacity-90 focus-visible:outline',
-          style: { backgroundColor: `${tag.color}${TAG_FILL_ALPHA.toString(16).padStart(2, '0')}`, color: readableOn(compositeColor(tag.color, surfaceColor)) },
-          onClick: () => { if (sessionId) ctrl.setSessionTag(sessionId, id); },
-          children: jsxs('span', { className: 'flex items-center gap-2', children: [jsx('span', { 'aria-hidden': true, children: tag.emoji }), jsx('span', { children: tag.name })] }),
-        }, id);
+        return jsxs('div', { className: 'flex items-center gap-1.5', children: [
+          jsx('button', {
+            type: 'button', disabled: !sessionId,
+            title: sessionId ? `Assign ${tag.name} (${tag.emoji})` : `${tag.name} (open a session to assign)`,
+            'aria-label': sessionId ? `Assign ${tag.name} tag to session` : `${tag.name} tag`, 'aria-pressed': selected,
+            className: 'flex min-w-0 flex-1 items-center gap-2 rounded px-2 py-1 text-left text-[11px] hover:opacity-90 focus-visible:outline',
+            style: { backgroundColor: `${tag.color}${TAG_FILL_ALPHA.toString(16).padStart(2, '0')}`, color: readableOn(compositeColor(tag.color, surfaceColor)) },
+            onClick: () => { if (sessionId) ctrl.setSessionTag(sessionId, id); },
+            children: jsxs('span', { className: 'flex items-center gap-2', children: [jsx('span', { 'aria-hidden': true, children: tag.emoji }), jsx('span', { className: 'truncate', children: tag.name })] }),
+          }),
+          showCreate ? jsxs('div', { className: 'flex shrink-0 gap-1', children: [
+            jsx('button', { type: 'button', className: buttonClass, 'aria-label': `Edit tag ${tag.name}`,
+              onClick: () => { setEditingTagId(id); setName(tag.name); setEmoji(tag.emoji); setColor(tag.color); }, children: 'Edit' }),
+            jsx('button', { type: 'button', className: buttonClass, 'aria-label': `Delete tag ${tag.name}`,
+              onClick: () => setDeleteCandidate({ id, name: tag.name, assignedCount: Object.values(prefs.sessionTags).filter((tagId) => tagId === id).length }), children: 'Delete' }),
+          ] }) : null,
+        ] }, id);
       }) }),
     ] }) : jsx('p', { className: 'text-[11px] text-(--ui-text-tertiary)', children: sessionId ? 'No tags yet. Create one below.' : 'Open a session to assign a tag.' }),
     legacyEmoji ? jsx('p', { className: 'text-[10px] text-(--ui-text-tertiary)', children: `Legacy emoji ${legacyEmoji} will remain until replaced or cleared.` }) : null,
@@ -252,14 +308,29 @@ function TagEditor({ ctrl, sessionId, surfaceColor, showCreate = true }) {
     showCreate ? jsxs('div', { className: 'flex flex-col gap-1.5 border-t border-(--dt-border) pt-2', children: [
       jsx('input', { type: 'text', value: name, maxLength: 40, placeholder: 'Tag name', 'aria-label': 'Tag name',
         className: 'rounded border border-(--dt-border) bg-transparent px-2 py-1 text-[11px]', onChange: (event) => setName(event.target.value) }),
-      jsx('div', { className: 'flex items-center gap-1.5', children: [
+      jsxs('div', { className: 'flex items-center gap-1.5', children: [
         jsx('input', { type: 'text', value: emoji, maxLength: 32, placeholder: 'Emoji', 'aria-label': 'Tag emoji',
           className: 'min-w-0 flex-1 rounded border border-(--dt-border) bg-transparent px-2 py-1 text-[12px]', onChange: (event) => setEmoji(event.target.value) }),
         jsx('input', { type: 'color', value: color, 'aria-label': 'Tag color', className: 'h-7 w-9 cursor-pointer border-0 bg-transparent p-0', onChange: (event) => setColor(event.target.value) }),
       ] }),
-      jsx('button', { type: 'button', className: buttonClass, disabled: !name.trim() || !normEmoji(emoji) || !normColor(color),
-        'aria-label': 'Create tag', onClick: () => { if (ctrl.createTag(name, emoji, color)) { setName(''); setEmoji(''); setColor(FALLBACK_COLOR); } }, children: 'Create tag' }),
+      jsxs('div', { className: 'flex gap-1.5', children: [
+        jsx('button', { type: 'button', className: buttonClass, disabled: !name.trim() || !normEmoji(emoji) || !normColor(color),
+          'aria-label': editingTagId ? 'Save tag' : 'Create tag', onClick: saveTag, children: editingTagId ? 'Save tag' : 'Create tag' }),
+        editingTagId ? jsx('button', { type: 'button', className: buttonClass, 'aria-label': 'Cancel tag edit', onClick: clearForm, children: 'Cancel' }) : null,
+      ] }),
     ] }) : null,
+    showCreate && deleteCandidate ? jsx(ConfirmDialog, {
+      open: true,
+      title: `Delete “${deleteCandidate.name}”?`,
+      description: `This removes the tag from ${deleteCandidate.assignedCount} assigned ${deleteCandidate.assignedCount === 1 ? 'session' : 'sessions'}.`,
+      confirmLabel: 'Delete tag',
+      destructive: true,
+      onClose: () => setDeleteCandidate(null),
+      onConfirm: () => {
+        ctrl.deleteTag(deleteCandidate.id);
+        if (editingTagId === deleteCandidate.id) clearForm();
+      },
+    }) : null,
   ] });
 }
 

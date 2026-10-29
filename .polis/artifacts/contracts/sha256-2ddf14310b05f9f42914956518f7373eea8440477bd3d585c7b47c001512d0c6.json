@@ -1,0 +1,180 @@
+{
+  "schema_version": 6,
+  "kind": "feature",
+  "scope": {
+    "allowed_paths": [
+      "desktop/plugin.js",
+      "tests/plugin.test.mjs",
+      "README.md"
+    ]
+  },
+  "test_scope": {
+    "allowed_paths": [
+      "tests/plugin.test.mjs"
+    ]
+  },
+  "development_method": "strict_sdd_tdd_v2",
+  "specification": {
+    "objective": "Allow users to edit and safely delete Prisma session tags.",
+    "requirements": [
+      {
+        "id": "REQ-TAG-10",
+        "statement": "The Prisma tag-management UI lets users edit a tag's name, emoji, and color while preserving its ID and existing assignments; assigned sessions receive the edited color."
+      },
+      {
+        "id": "REQ-TAG-11",
+        "statement": "The Prisma tag-management UI lets users delete a tag only after explicit confirmation; deletion removes its session assignments and clears the corresponding session color overrides."
+      }
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-TAG-7",
+        "statement": "Editing a tag persists validated name, emoji, and color under the same tag ID, preserves assignments, and updates the color override for every assigned session.",
+        "requirements": [
+          "REQ-TAG-10"
+        ],
+        "proof": "regression"
+      },
+      {
+        "id": "AC-TAG-8",
+        "statement": "A destructive ConfirmDialog gates tag deletion; confirming removes the tag and only its assignments, clears affected session color overrides, and preserves other tags, their assignments, and legacy emoji data.",
+        "requirements": [
+          "REQ-TAG-11"
+        ],
+        "proof": "regression"
+      }
+    ],
+    "invariants": [
+      {
+        "id": "INV-TAG-6",
+        "statement": "Creating, assigning, clearing, rendering, and persisting tags continues to work; editing never changes a tag ID or its session mappings."
+      },
+      {
+        "id": "INV-TAG-7",
+        "statement": "Deleting a tag does not change profile colors, unrelated tags or assignments, session records, or preserved legacy emoji-only assignments."
+      }
+    ],
+    "forbidden_states": [
+      {
+        "id": "FORBID-TAG-9",
+        "statement": "An invalid tag edit is persisted or a tag is deleted before the user confirms the destructive action."
+      },
+      {
+        "id": "FORBID-TAG-10",
+        "statement": "A deleted tag remains referenced by sessionTags or leaves a stale Prisma session color override."
+      }
+    ],
+    "inputs": [
+      {
+        "id": "INPUT-TAG-3",
+        "statement": "An existing tag ID and edited name, single emoji, and six-digit hexadecimal color, or a tag ID selected for deletion."
+      },
+      {
+        "id": "INPUT-TAG-4",
+        "statement": "The current per-session tag assignments and session color overrides for the selected tag."
+      }
+    ],
+    "outputs": [
+      {
+        "id": "OUTPUT-TAG-3",
+        "statement": "An updated tag definition with stable ID and refreshed assigned-session colors, or a confirmed deletion with matching session assignments and color overrides cleared."
+      }
+    ],
+    "failure_semantics": [
+      {
+        "id": "FAIL-TAG-4",
+        "statement": "Invalid fields or an unknown tag ID cause no persistence or color changes; canceling deletion leaves the tag and its assignments unchanged."
+      }
+    ]
+  },
+  "baseline_lock": {
+    "git_object_format": "sha1",
+    "base_commit": "26df74db5f0e52c141b1e9fca6b3a42d336c7ea2",
+    "base_tree": "37758bb4f868c3e4d19571e63e32daf662ba114b",
+    "policy_sha256": "e79833ebc3a6aa4d452d938a53633435aac6943865e9798f6506fe2dcf650378",
+    "specification_sha256": "602c8a130b08aced6286fc63ad29f41680639b7eb8c3c0574d76c39b2bd9cab7"
+  },
+  "behavior": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "affected": {
+    "argv": [
+      "node",
+      "--experimental-vm-modules",
+      "--test",
+      "tests/plugin.test.mjs"
+    ],
+    "cwd": ".",
+    "timeout_seconds": 1200,
+    "environment": {
+      "mode": "clean",
+      "pass": [
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SystemRoot",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "LOCALAPPDATA"
+      ]
+    }
+  },
+  "regression": {
+    "mode": "red_green",
+    "command": {
+      "argv": [
+        "node",
+        "--experimental-vm-modules",
+        "--test",
+        "tests/plugin.test.mjs"
+      ],
+      "cwd": ".",
+      "timeout_seconds": 1200,
+      "environment": {
+        "mode": "clean",
+        "pass": [
+          "PATH",
+          "HOME",
+          "TMPDIR",
+          "TMP",
+          "TEMP",
+          "SystemRoot",
+          "COMSPEC",
+          "PATHEXT",
+          "USERPROFILE",
+          "LOCALAPPDATA"
+        ]
+      }
+    },
+    "baseline_exit_code": 1,
+    "baseline_output_contains": [
+      "edit tag updates definition and session colors",
+      "delete confirmation clears all tag assignments and overrides"
+    ]
+  }
+}

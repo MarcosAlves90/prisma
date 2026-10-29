@@ -47,6 +47,7 @@ async function boot(saved) {
     Popover: function Popover({ children }) { return children; },
     PopoverTrigger: function PopoverTrigger({ children }) { return children; },
     PopoverContent: function PopoverContent({ children }) { return children; },
+    ConfirmDialog: function ConfirmDialog(props) { return { type: 'confirm-dialog', props }; },
     setAccentOverride(value) { applied.push(value); },
     readableOn(background) { readableInputs.push(background); return background === '#EFFF00' ? '#000000' : '#FFFFFF'; },
     useTheme() { return { theme: { name: 'midnight-dark', label: 'Midnight', description: 'test', colors: { background: '#101010', foreground: '#eeeeee', sidebarBackground: '#111111', primary: '#777777' }, darkColors: { background: '#090909', foreground: '#eeeeee', sidebarBackground: '#090909', primary: '#777777' } }, themeName: 'midnight', resolvedMode: 'dark', previewTheme(name, mode) { previews.push({ name, mode }); }, clearThemePreview() { clearedPreviews.push(true); }, setTheme() { committedThemeChanges += 1; } }; },
@@ -248,4 +249,68 @@ test('tag picker uses a translucent fill, no borders, spacing, and readable text
   assert.doesNotMatch(choice.props.className, /\bborder\b|border-/);
   const list = app.nodes(menu, (n) => n.props.className?.includes('max-h-36'))[0];
   assert.match(list.props.className, /\bgap-1\b/);
+});
+
+test('edit tag updates definition and session colors', async () => {
+  const app = await boot({
+    tags: { 'tag-1': { name: 'Bug', emoji: '🐛', color: '#AA3344' } },
+    sessionTags: { 'session-1': 'tag-1', 'session-2': 'tag-1' },
+    sessionEmojis: { 'legacy-session': '🐱' },
+  });
+  const menu = () => app.find('status').render();
+  app.nodes(menu(), (n) => n.props['aria-label'] === 'Edit tag Bug')[0].props.onClick();
+  const field = (label) => app.nodes(menu(), (n) => n.props['aria-label'] === label)[0];
+  assert.equal(field('Tag name').props.value, 'Bug');
+  field('Tag name').props.onChange({ target: { value: 'Fixed' } });
+  field('Tag emoji').props.onChange({ target: { value: '✅' } });
+  field('Tag color').props.onChange({ target: { value: '#196D31' } });
+  app.nodes(menu(), (n) => n.props['aria-label'] === 'Save tag')[0].props.onClick();
+
+  const updated = app.writes.at(-1).value;
+  assert.deepEqual(updated.tags['tag-1'], { name: 'Fixed', emoji: '✅', color: '#196D31' });
+  assert.equal(updated.sessionTags['session-1'], 'tag-1');
+  assert.equal(updated.sessionTags['session-2'], 'tag-1');
+  assert.equal(Object.keys(updated.sessionTags).length, 2);
+  assert.equal(updated.sessionEmojis['legacy-session'], '🐱');
+  assert.deepEqual(app.sessionColors.slice(-2), [
+    { sessionId: 'session-1', color: '#196D31' },
+    { sessionId: 'session-2', color: '#196D31' },
+  ]);
+});
+
+test('delete confirmation clears all tag assignments and overrides', async () => {
+  const app = await boot({
+    tags: {
+      'tag-1': { name: 'Bug', emoji: '🐛', color: '#AA3344' },
+      'tag-2': { name: 'Done', emoji: '✅', color: '#196D31' },
+    },
+    sessionTags: { 'session-1': 'tag-1', 'session-2': 'tag-1', 'session-3': 'tag-2' },
+    sessionEmojis: { 'legacy-session': '🐱' },
+  });
+  const menu = () => app.find('status').render();
+  const deleteTag = () => app.nodes(menu(), (n) => n.props['aria-label'] === 'Delete tag Bug')[0];
+  deleteTag().props.onClick();
+  let dialog = app.nodes(menu(), (n) => n.type === 'confirm-dialog')[0];
+  assert.equal(dialog.props.open, true);
+  assert.equal(dialog.props.destructive, true);
+  assert.match(dialog.props.description, /2 assigned sessions/);
+  assert.equal(app.writes.length, 0, 'deletion waits for confirmation');
+  dialog.props.onClose();
+  assert.equal(app.writes.length, 0, 'cancel leaves tags unchanged');
+
+  deleteTag().props.onClick();
+  dialog = app.nodes(menu(), (n) => n.type === 'confirm-dialog')[0];
+  dialog.props.onConfirm();
+  const updated = app.writes.at(-1).value;
+  assert.deepEqual(Object.keys(updated.tags), ['tag-2']);
+  assert.equal(updated.tags['tag-2'].name, 'Done');
+  assert.equal(updated.tags['tag-2'].emoji, '✅');
+  assert.equal(updated.tags['tag-2'].color, '#196D31');
+  assert.deepEqual(Object.keys(updated.sessionTags), ['session-3']);
+  assert.equal(updated.sessionTags['session-3'], 'tag-2');
+  assert.equal(updated.sessionEmojis['legacy-session'], '🐱');
+  assert.deepEqual(app.sessionColors.slice(-2), [
+    { sessionId: 'session-1', color: null },
+    { sessionId: 'session-2', color: null },
+  ]);
 });
