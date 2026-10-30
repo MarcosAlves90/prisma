@@ -1,0 +1,5 @@
+name: prisma
+version: "0.1.0"
+description: "Hermes Desktop plugin for profile accent colors and tagged-session organization."
+author: "Marcos Lopes"
+requires_hermes: ">=0.22.5"

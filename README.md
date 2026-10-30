@@ -12,6 +12,7 @@
 - Custom colored emoji tags for sessions, with accessible controls to create, edit, assign, and remove tags.
 - A **Tagged sessions** kanban with profile/tag filters, search, drag-and-drop, and persistent column order.
 - Local plugin storage; no extra runtime dependencies or direct network access.
+- **Disclosure:** the cross-profile sessions board reads registered profile routes and persisted session titles, previews, and IDs through the Hermes Desktop SDK. Prisma makes no direct network calls, does not launch shell commands or background processes, and does not store credentials or telemetry.
 
 ## Install
 

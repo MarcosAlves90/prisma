@@ -549,3 +549,13 @@ test('README cover image and PNG asset', () => {
   const image = fs.readFileSync(path.resolve(cwd, '../assets/prisma-cover.png'));
   assert.deepEqual([...image.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
 });
+
+test('catalog manifest and disclosures', () => {
+  const manifest = fs.readFileSync(path.resolve(cwd, '../plugin.yaml'), 'utf8');
+  const readme = fs.readFileSync(path.resolve(cwd, '../README.md'), 'utf8');
+  assert.match(manifest, /^name: prisma$/m);
+  assert.match(manifest, /^version: "0\.1\.0"$/m);
+  assert.match(manifest, /^requires_hermes: ">=0\.22\.5"$/m);
+  assert.match(readme, /cross-profile sessions/);
+  assert.match(readme, /no direct network calls, does not launch shell commands or background processes, and does not store credentials or telemetry/i);
+});
